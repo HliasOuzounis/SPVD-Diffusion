@@ -11,16 +11,16 @@ def parse_args():
     # Add arguments
     parser.add_argument('--version', type=str, choices=['S', 'M', 'L'], default='S',
                         help='Model version: S, M, or L (default: S)')
-    parser.add_argument('--categories', type=str, nargs='+', default=['car'],
-                        help='List of categories (default: ["car"])')
+    parser.add_argument('--categories', type=str, nargs='+', default=['airplane'],
+                        help='List of categories (default: ["airplane"])')
     parser.add_argument('--ckpt_name', type=str, default='SPVD',
                         help='Checkpoint name (default: SPVD)')
-    parser.add_argument('--epochs', type=int, default=2,
+    parser.add_argument('--epochs', type=int, default=500,
                         help='Number of epochs (default: 1000)')
     parser.add_argument('--lr', type=float, default=0.0001,
                         help='Learning rate (default: 0.0001)')
-    parser.add_argument('--path', type=str, default='/home/tourloid/Desktop/PhD/Data/ShapeNetCore.v2.PC15k/',
-                        help='Path to the dataset (default: /home/tourloid/Desktop/PhD/Data/ShapeNetCore.v2.PC15k/)')
+    parser.add_argument('--path', type=str, default='/home/ubuntu/ShapeNetPC/',
+                        help='Path to the dataset (default: /home/ubuntu/ShapeNetPC/)')
     parser.add_argument('--precision', type=str, choices=['medium', 'high'], default='medium',
                         help='Floating point precision: medium or high (default: medium)')
 
@@ -47,10 +47,14 @@ def main():
     model = DiffusionBase(m, lr=args.lr)
 
     # Get dataloaders
-    tr_dl, te_dl = get_dataloaders(args.path, args.categories)
+    # tr_dl, te_dl = get_dataloaders(args.path, args.categories)
+    
+    from datasets.modelnet40.modelnet40_loader import get_dataloaders
+    path = "./data/ModelNet40/pointclouds"
+    tr_dl, te_dl = get_dataloaders(path)
 
     # Set up checkpoint callback
-    checkpoint_callback = ModelCheckpoint(dirpath='checkpoints/', filename=args.ckpt_name)
+    checkpoint_callback = ModelCheckpoint(dirpath='checkpoints/ModelNet40', filename=args.ckpt_name)
 
     # Set up trainer
     trainer = L.Trainer(

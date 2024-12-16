@@ -140,8 +140,8 @@ class SchedulerBase:
 
         for i, t in enumerate(self.strategy.steps):
             x_t = self.sample_step(model, x_t, t, i, emb, shape, device)
-            if save_process: preds.append(self.get_pc(x_t, shape)) 
-
+            if save_process: preds.append(self.get_pc(x_t, shape))
+        
         return preds if save_process else self.get_pc(x_t, shape)
 
 

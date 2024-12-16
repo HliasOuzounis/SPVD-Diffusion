@@ -44,6 +44,7 @@ class ShapeNet15kPointCloudsSparseNoisy(ShapeNet15kPointClouds):
         noisy_pts = SparseTensor(coords=coords, feats=feats)
         noise = SparseTensor(coords=coords, feats=noise)
         t = torch.tensor(t)
+        
         return {'input':noisy_pts, 't':t, 'noise':noise}
     
 
