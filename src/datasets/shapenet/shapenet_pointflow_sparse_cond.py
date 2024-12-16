@@ -1,5 +1,5 @@
 from .shapenet_pointflow import ShapeNet15kPointClouds, synsetid_to_cate
-from .utils import NoiseSchedulerDDPM
+from ..utils import NoiseSchedulerDDPM
 
 import torch
 import numpy as np

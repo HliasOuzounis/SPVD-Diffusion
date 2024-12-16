@@ -3,7 +3,7 @@ import torch
 import lightning as L
 from models import *
 from lightning.pytorch.callbacks import ModelCheckpoint
-from datasets.shapenet_pointflow_sparse import get_dataloaders
+from datasets.shapenet.shapenet_pointflow_sparse import get_dataloaders
 
 def parse_args():
     parser = argparse.ArgumentParser(description="SPVD Training Script")

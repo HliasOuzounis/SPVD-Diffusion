@@ -12,10 +12,7 @@ from typing import Any
 import os
 from tqdm import tqdm
 
-try:
-    from datasets.utils import NoiseSchedulerDDPM
-except ImportError:
-    from utils import NoiseSchedulerDDPM
+from ..utils import NoiseSchedulerDDPM
 
 class ModelNet40(Dataset):
     def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:

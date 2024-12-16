@@ -3,5 +3,6 @@ lightning_logs/
 *.pyc
 *.ckpt
 
+checkpoints/
 data/
 dependencies/

@@ -1,4 +1,4 @@
-from datasets.shapenet_pointflow import get_datasets
+from datasets.shapenet.shapenet_pointflow import get_datasets
 import numpy as np
 import torch
 from metrics.evaluation_metrics import compute_all_metrics
