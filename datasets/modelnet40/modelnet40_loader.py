@@ -33,7 +33,7 @@ class ModelNet40(Dataset):
     def load_data(self, path: str) -> None:
         self.pointclouds = []
         
-        for category in tqdm(os.listdir(path)[:1], desc="Loading data", unit="category"):
+        for category in tqdm(os.listdir(path), desc="Loading data", unit="category"):
             if category not in self.categories and self.categories:
                 continue
             for file in os.listdir(os.path.join(path, category, self.split)):
@@ -64,8 +64,8 @@ class ModelNet40(Dataset):
         }
     
 class ModelNet40Sparse(ModelNet40):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000) -> None:
-        super().__init__(path, split, sample_size)
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
+        super().__init__(path, split, sample_size, categories)
         
         self.set_voxel_size()
         self.set_scheduler()
@@ -101,10 +101,10 @@ class ModelNet40Sparse(ModelNet40):
             "noise": noise
         }
         
-def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4) -> tuple[DataLoader, DataLoader]:
+def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:
     sample_size = 2048
-    train_dataset = ModelNet40Sparse(path, "train", sample_size)
-    test_dataset = ModelNet40Sparse(path, "test", sample_size)
+    train_dataset = ModelNet40Sparse(path, "train", sample_size, categories)
+    test_dataset = ModelNet40Sparse(path, "test", sample_size, categories)
     
     train_dataset.set_voxel_size(1e-5)
     test_dataset.set_voxel_size(1e-5)
