@@ -16,7 +16,7 @@ class ModelNet40Downloader:
         if not os.path.exists(self.path):
             downlaod(self.path)
 
-        self.path += "off_models"
+        self.path += "off"
 
     def __len__(self) -> int:
         return len(self.trimesh_data)
@@ -41,7 +41,7 @@ class ModelNet40Downloader:
                 try:
                     if member.is_dir():
                         continue
-                    member.filename = member.filename.replace("ModelNet40/", "off_models/")
+                    member.filename = member.filename.replace("ModelNet40/", "off/")
                     zf.extract(member, path)
                 except zipname.error as e:
                     pass
