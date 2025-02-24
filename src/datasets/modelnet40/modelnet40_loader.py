@@ -11,15 +11,18 @@ import numpy as np
 from typing import Any
 import os
 from tqdm import tqdm
+from PIL import Image
 
-from ..utils import NoiseSchedulerDDPM
+from ..utils import NoiseSchedulerDDPM, VisualTransformer
 
 class ModelNet40(Dataset):
     def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
         assert split in ["train", "test"], "split should be either 'train' or 'test'"
         self.split = split
+
+        self.visual_transformer = VisualTransformer()
         
-        self.path = path if path is not None else "./data/ModelNet40/pointclouds"
+        self.path = path if path is not None else "./data/ModelNet40"
         self.sample_size = sample_size
 
         self.categories = categories if categories is not None else []
@@ -28,16 +31,30 @@ class ModelNet40(Dataset):
 
     
     def load_data(self, path: str) -> None:
-        self.pointclouds = []
+        pc_path = os.path.join(path, "pointclouds")
+        renders_path = os.path.join(path, "renders")
         
-        for category in tqdm(os.listdir(path), desc="Loading data", unit="category"):
-            if category not in self.categories and self.categories:
+        self.pointclouds = []
+        self.renders = []
+        
+        for category in tqdm(os.listdir(pc_path), desc="Loading data", unit="category"):
+            if self.categories and category not in self.categories:
                 continue
-            for file in os.listdir(os.path.join(path, category, self.split)):
-                file = os.path.join(path, category, self.split, file)
+            for file in os.listdir(os.path.join(pc_path, category, self.split)):
+                file = os.path.join(pc_path, category, self.split, file)
                 pointcloud = np.load(file)
                 
                 self.pointclouds.append(pointcloud)
+
+            model_views = []
+            for model in os.listdir(os.path.join(renders_path, category, self.split)):
+                for view in os.listdir(os.path.join(renders_path, category, self.split, model)):
+                    image = Image.open(os.path.join(renders_path, category, self.split, model, view)).convert("RGB")
+                    render = self.visual_transformer(image)
+                    model_views.append(render)
+                
+            self.renders.append(model_views)
+            
     
     def __len__(self) -> int:
         return len(self.pointclouds)
@@ -48,6 +65,9 @@ class ModelNet40(Dataset):
         
         idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
         pc = pc[idxs, :]
+
+        renders = self.renders[idx]
+        selected_render = np.random.choice(renders)
         
         std = 0.02
         noise = np.random.normal(0, 0.02, pc.shape)
@@ -57,7 +77,8 @@ class ModelNet40(Dataset):
         
         return {
             "idx": idx,
-            "pc": pc
+            "pc": pc,
+            "render": selected_render
         }
     
 class ModelNet40Sparse(ModelNet40):
@@ -74,7 +95,10 @@ class ModelNet40Sparse(ModelNet40):
         self.voxel_size = voxel_size
         
     def __getitem__(self, idx) -> Any:
-        pc = super().__getitem__(idx)["pc"]
+        data = super().__getitem__(idx)
+        
+        pc = data["pc"]
+        render = data["render"]
         
         pc, t, noise = self.noise_scheduler(pc)
         
@@ -95,7 +119,8 @@ class ModelNet40Sparse(ModelNet40):
         return {
             "input": noisy_pc,
             "t": t,
-            "noise": noise
+            "noise": noise,
+            "render": render,
         }
         
 def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:

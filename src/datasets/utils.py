@@ -2,6 +2,8 @@ import torch
 import random 
 import numpy as np
 
+from transformers import ViTImageProcessor, ViTModel
+
 
 class NoiseSchedulerDDPM:
 
@@ -40,3 +42,22 @@ class NoiseSchedulerDDPM:
         xt = np.sqrt(ᾱ_t)*x0 + np.sqrt(1-ᾱ_t)*ε
 
         return xt, t, ε
+
+class VisualTransformer:
+    model_name = "google/vit-base-patch16-224-in21k"  # Example model
+    def __init__(self):
+        self.processor = ViTImageProcessor.from_pretrained(self.model_name)
+        self.model = ViTModel.from_pretrained(self.model_name)
+        self.model.eval()
+
+    def __call__(self, x):
+        inputs = self.processor(x, return_tensors="pt")
+        outputs = self.model(**inputs)
+        return outputs.last_hidden_state
+
+if __name__ == "__main__":
+    V = VisualTransformer()
+    from PIL import Image
+    image_path = "data/test.png"
+    image = Image.open(image_path).convert("RGB")
+    print(V(image).shape)
