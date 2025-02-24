@@ -4,5 +4,9 @@ lightning_logs/
 *.ckpt
 
 checkpoints/
+logs/
 data/
 dependencies/
+
+**__pycache__/
+**.ipynb_checkpoints/

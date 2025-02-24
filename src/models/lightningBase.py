@@ -37,11 +37,11 @@ class DiffusionBase(L.LightningModule):
 
         # activate the network for noise prediction
         preds = self(inp)
-
         # calculate the loss
         loss = self.task.loss_fn(preds, target)
 
-        self.log('train_loss', loss, batch_size=self.tr_batch_size)
+        # log the training loss on each epoch
+        self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=self.tr_batch_size)
         return loss
 
     def validation_step(self, batch, batch_idx):
