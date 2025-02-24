@@ -14,9 +14,9 @@ class Task(ABC):
 
 class SparseGeneration(Task):
     def prep_data(self, batch):
-        noisy_data, t, noise = batch['input'], batch['t'], batch['noise']
+        noisy_data, t, noise, render_features = batch['input'], batch['t'], batch['noise'], batch['render-features']
         inp = (noisy_data, t)
-        return inp, noise.F
+        return inp, noise.F, render_features
     def loss_fn(self, preds, target):
         return F.mse_loss(preds, target)
 
@@ -33,7 +33,7 @@ class DiffusionBase(L.LightningModule):
     
     def training_step(self, batch, batch_idx):
         # get data from the batch
-        inp, target = self.task.prep_data(batch)
+        inp, target, image_features = self.task.prep_data(batch)
 
         # activate the network for noise prediction
         preds = self(inp)

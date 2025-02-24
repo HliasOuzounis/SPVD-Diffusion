@@ -36,24 +36,28 @@ class ModelNet40(Dataset):
         
         self.pointclouds = []
         self.renders = []
+        self.render_features = []
         
-        for category in tqdm(os.listdir(pc_path), desc="Loading data", unit="category"):
+        for category in os.listdir(pc_path):
             if self.categories and category not in self.categories:
                 continue
-            for file in os.listdir(os.path.join(pc_path, category, self.split)):
-                file = os.path.join(pc_path, category, self.split, file)
-                pointcloud = np.load(file)
+            
+            for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=f"Loading renders for {category}"):
+                model = os.path.join(pc_path, category, self.split, file)
+                pointcloud = np.load(model)
                 
                 self.pointclouds.append(pointcloud)
 
-            model_views = []
-            for model in os.listdir(os.path.join(renders_path, category, self.split)):
-                for view in os.listdir(os.path.join(renders_path, category, self.split, model)):
-                    image = Image.open(os.path.join(renders_path, category, self.split, model, view)).convert("RGB")
-                    render = self.visual_transformer(image)
-                    model_views.append(render)
-                
-            self.renders.append(model_views)
+                file, _ = os.path.splitext(file)
+    
+                model_views = []
+                for view in os.listdir(os.path.join(renders_path, category, self.split, file)):
+                    image = Image.open(os.path.join(renders_path, category, self.split, file, view)).convert("RGB")
+                    preprocessed = self.visual_transformer.preprocess(image)['pixel_values'][0]
+                    model_views.append(preprocessed)
+                model_views = torch.stack(model_views)
+                self.renders.append(model_views)
+                self.render_features.append(self.visual_transformer(model_views))
             
     
     def __len__(self) -> int:
@@ -66,8 +70,10 @@ class ModelNet40(Dataset):
         idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
         pc = pc[idxs, :]
 
-        renders = self.renders[idx]
-        selected_render = np.random.choice(renders)
+        renders = self.render_features[idx]
+        selected_render_idx = np.random.randint(0, renders.shape[0])
+        # selected_render = renders[selected_render_idx]
+        render_features = renders[selected_render_idx]
         
         std = 0.02
         noise = np.random.normal(0, 0.02, pc.shape)
@@ -78,7 +84,8 @@ class ModelNet40(Dataset):
         return {
             "idx": idx,
             "pc": pc,
-            "render": selected_render
+            # "render": selected_render,
+            "render_features": render_features,
         }
     
 class ModelNet40Sparse(ModelNet40):
@@ -98,7 +105,8 @@ class ModelNet40Sparse(ModelNet40):
         data = super().__getitem__(idx)
         
         pc = data["pc"]
-        render = data["render"]
+        # render = data["render"]
+        render_features = data["render_features"]
         
         pc, t, noise = self.noise_scheduler(pc)
         
@@ -120,7 +128,8 @@ class ModelNet40Sparse(ModelNet40):
             "input": noisy_pc,
             "t": t,
             "noise": noise,
-            "render": render,
+            # "render": render,
+            "render-features": render_features
         }
         
 def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:
@@ -138,7 +147,7 @@ def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categ
         
 
 def main():
-    tr, te = get_dataloaders("./data/ModelNet40/pointclouds")
+    tr, te = get_dataloaders("./data/ModelNet40")
     
     print(next(iter(tr)))
 

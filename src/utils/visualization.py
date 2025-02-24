@@ -40,4 +40,26 @@ def visualize_notebook(batch, grid=(8, 4), x_offset=2.5, y_offset=2.5, point_siz
         break
         
     plot.display()
+
+
+def plot_renders(batch, grid=(8, 4)):
+    import matplotlib.pyplot as plt
     
+    print(batch.shape)
+    fig, axes = plt.subplots(grid[0], grid[1], figsize=(grid[1] * 2, grid[0] * 2))
+    batch = batch.detach().cpu().clone()
+    k = 0
+    for i in range(grid[0]):
+        for j in range(grid[1]):
+            if k >= batch.shape[0]:
+                axes[i, j].axis('off')
+                continue
+            
+            img = batch[k].permute(1, 2, 0)  # assuming batch is in (N, C, H, W) format
+            axes[i, j].imshow(img)
+            axes[i, j].axis('off')
+            
+            k += 1
+    
+    plt.tight_layout()
+    plt.show()

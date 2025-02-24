@@ -42,10 +42,11 @@ class EmbResBlock(nn.Module):
         self.idconv = fc.noop if ni==nf else nn.Linear(ni, nf) 
 
         self.attn = False
-        if attn_chans: self.attn = SparseAttention(nf, attn_chans)
+        if attn_chans: 
+            self.attn = SparseAttention(nf, attn_chans)
 
     
-    def forward(self, x_in, t):
+    def forward(self, x_in, t, cross=None):
 
         # first conv
         x = self.conv1(x_in)
@@ -59,7 +60,7 @@ class EmbResBlock(nn.Module):
         # residual connection
         x.F = x.F + self.idconv(x_in.F)
 
-        if self.attn: 
+        if self.attn:
             x = self.attn(x)
 
         return x
@@ -93,7 +94,6 @@ class UpBlock(nn.Module):
 
 
 class SPVUnet(nn.Module):
-
     def __init__(self, voxel_size, in_channels=3, out_channels=3, nfs=(224,448,672,896), pres=1e-5, num_layers=1, attn_chans=None, attn_start=1):
         super().__init__()
 
@@ -103,7 +103,6 @@ class SPVUnet(nn.Module):
         # This is crucial in the sparse implementation to correct dublicate points etc 
         # before the introduction of skip connections
         self.conv_in = spnn.Conv3d(in_channels, nfs[0], kernel_size=3, padding=1)
-        
         
         self.n_temb = nf = nfs[0]
         n_emb = nf*4
@@ -146,7 +145,6 @@ class SPVUnet(nn.Module):
         
 
     def forward(self, inp):
-
         # Input Processing
         x, t = inp
         z = PointTensor(x.F, x.C.float())

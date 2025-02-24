@@ -49,11 +49,16 @@ class VisualTransformer:
         self.processor = ViTImageProcessor.from_pretrained(self.model_name)
         self.model = ViTModel.from_pretrained(self.model_name)
         self.model.eval()
+        self.model.to("cuda")
+
+    def preprocess(self, image):
+        inputs = self.processor(images=image, return_tensors="pt")
+        return inputs.to("cuda")
 
     def __call__(self, x):
-        inputs = self.processor(x, return_tensors="pt")
-        outputs = self.model(**inputs)
-        return outputs.last_hidden_state
+        with torch.no_grad():
+            outputs = self.model(x)
+        return outputs.last_hidden_state.cpu()
 
 if __name__ == "__main__":
     V = VisualTransformer()
