@@ -2,9 +2,9 @@ import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
 
-from modules.convolution import DownBlock, UpBlock
-from modules.mlp import SharedMLP
-from modules.sparse_utils import mixed_mix, PointTensor, initial_voxelize
+from .modules.convolution import DownBlock, UpBlock
+from .modules.mlp import SharedMLP
+from .modules.sparse_utils import mixed_mix, PointTensor, initial_voxelize
 
 from typing import Iterable
 
@@ -71,9 +71,9 @@ class SPVDownStage(nn.Module):
             num_layers_list = [num_layers_list] * (len(features_list) - 1)
         if isinstance(attn_heads, int):
             attn_heads = [attn_heads] * (len(features_list) - 1)
-        if isinstance(attn_heads, None):
+        if attn_heads is None:
             attn_heads = [None] * (len(features_list) - 1)
-
+        
         assert (
             len(features_list) == len(num_layers_list) + 1 == len(attn_heads) + 1
         ), "Features, num_layers and attn_heads must have the same length"
@@ -153,7 +153,7 @@ class SPVUpStage(nn.Module):
             num_layers_list = [num_layers_list] * (len(features_list) - 1)
         if isinstance(attn_heads, int):
             attn_heads = [attn_heads] * (len(features_list) - 1)
-        if isinstance(attn_heads, None):
+        if attn_heads is None:
             attn_heads = [None] * (len(features_list) - 1)
 
         assert (
@@ -218,7 +218,7 @@ class SPVUpStage(nn.Module):
         return x, z
 
 
-class SPVD(nn.Module):
+class SPVUnet(nn.Module):
     """
     The Sparse Point Voxel Diffuion (SPVD) model.
     """
@@ -267,7 +267,7 @@ class SPVD(nn.Module):
             for up_block in up_blocks
         )
 
-        self.conv_out = SharedMLP(up_blocks[-1]["features_list"][0], point_channels)
+        self.conv_out = SharedMLP(down_blocks[-1]["features_list"][-1], point_channels)
 
     def forward(self, inp, image_features=None):
         """
@@ -298,7 +298,7 @@ class SPVD(nn.Module):
 
         # Initial Voxelization
         x0 = initial_voxelize(z, self.point_res, self.voxel_size)
-
+        
         # Initial Convolution
         x, z = self.stem_stage(x0, z)
 
@@ -306,9 +306,10 @@ class SPVD(nn.Module):
         for down_stage in self.down_stages:
             x, z, saved = down_stage(x, z, t, image_features)
             skip_connections += saved
-
-        return x, z
+            
+        return self.conv_out(z).F
+    
         for up_stage in self.up_stages:
             x, z = up_stage(x, z, t, skip_connections, image_features)
 
-        return self.conv_out(z.F)
+        return self.conv_out(z)

@@ -17,6 +17,7 @@ class SparseGeneration(Task):
         noisy_data, t, noise, render_features = batch['input'], batch['t'], batch['noise'], batch['render-features']
         inp = (noisy_data, t)
         return inp, noise.F, render_features
+    
     def loss_fn(self, preds, target):
         return F.mse_loss(preds, target)
 
@@ -35,6 +36,7 @@ class DiffusionBase(L.LightningModule):
         # get data from the batch
         inp, target, image_features = self.task.prep_data(batch)
 
+        image_features = None
         # activate the network for noise prediction
         preds = self(inp, image_features)
         # calculate the loss
@@ -46,6 +48,9 @@ class DiffusionBase(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         inp, target, image_features = self.task.prep_data(batch)
+
+        image_features = None
+        
         preds = self(inp, image_features)
         
         loss = self.task.loss_fn(preds, target)

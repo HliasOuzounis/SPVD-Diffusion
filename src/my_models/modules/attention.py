@@ -1,4 +1,4 @@
-from sparse_utils import sparse_to_dense
+from .sparse_utils import sparse_to_dense
 
 import torch.nn as nn
 

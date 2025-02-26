@@ -1,8 +1,8 @@
 import torch.nn as nn
 import torchsparse.nn as spnn
 
-from embeddings import TimeEbeddingBlock
-from attention import SparseAttention, SparseCrossAttention
+from .embeddings import TimeEbeddingBlock
+from .attention import SparseAttention, SparseCrossAttention
 
 
 class SparseConv3DBlock(nn.Module):
@@ -47,7 +47,7 @@ class SparseResidualBlock(nn.Module):
     ):
         super().__init__()
         self.conv1 = SparseConv3DBlock(features_in, features_out, kernel_size)
-        self.t_embedding = TimeEbeddingBlock(t_emb_features, features_out)
+        # self.t_embedding = TimeEbeddingBlock(t_emb_features, features_out)
         self.conv2 = SparseConv3DBlock(features_out, features_out, kernel_size)
 
         self.res_connection = (
@@ -61,10 +61,10 @@ class SparseResidualBlock(nn.Module):
             self.attn = SparseAttention(...)
             self.cross_attn = SparseCrossAttention(...)
 
-    def forward(self, x, t, image_features=None):
+    def forward(self, x_in, t, image_features=None):
         """
         Args:
-            x (SparseTensor): Input sparse tensor of shape (B, N, F).
+            x_in (SparseTensor): Input sparse tensor of shape (B, N, F).
                 - B: Batch size.
                 - N: Number of points.
                 - F: Number of input features (`features_in`).
@@ -83,10 +83,10 @@ class SparseResidualBlock(nn.Module):
                 - N: Number of points.
                 - F: Number of output features (`features_out`).
         """
-        x = self.conv1(x)
+        x = self.conv1(x_in)
         # x.F = self.t_embedding(x.F, t, x.C[:, 0]) # For Testing
         x = self.conv2(x)
-        x.F = x.F + self.res_connection(x.F)
+        x.F = x.F + self.res_connection(x_in.F)
 
         if self.has_attn:
             x = self.attn(x)
@@ -114,10 +114,10 @@ class DownBlock(nn.Module):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
-                features_in if i == 0 else features_out,
-                features_out,
-                t_emb_features,
-                attn_heads,
+                features_in=features_in if i == 0 else features_out,
+                features_out=features_out,
+                t_emb_features=t_emb_features,
+                attn_heads=attn_heads,
             )
             for i in range(num_layers)
         )
@@ -169,10 +169,10 @@ class UpBlock(nn.Module):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
-                features_in if i == 0 else features_out,
-                features_out,
-                t_emb_features,
-                attn_heads,
+                features_in=features_in if i == 0 else features_out,
+                features_out=features_out,
+                t_emb_features=t_emb_features,
+                attn_heads=attn_heads,
             )
             for i in range(num_layers)
         )
