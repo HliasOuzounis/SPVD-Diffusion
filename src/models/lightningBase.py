@@ -28,15 +28,15 @@ class DiffusionBase(L.LightningModule):
         self.task = task
         self.learning_rate = lr
         
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, cross=None):
+        return self.model(x, cross)
     
     def training_step(self, batch, batch_idx):
         # get data from the batch
         inp, target, image_features = self.task.prep_data(batch)
 
         # activate the network for noise prediction
-        preds = self(inp)
+        preds = self(inp, image_features)
         # calculate the loss
         loss = self.task.loss_fn(preds, target)
 

@@ -65,6 +65,38 @@ class Attention(nn.Module):
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
+
+
+class CrossAttention(nn.Module):
+    """
+        Cross Attention module that can handle a masked input.
+    """
+    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+        super().__init__()
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        self.scale = qk_scale or head_dim**-0.5
+        self.q = nn.Linear(dim, dim, bias=qkv_bias)
+        self.kv = nn.Linear(dim, dim*2, bias=qkv_bias)
+        self.attn_drop=nn.Dropout(attn_drop)
+        self.proj = nn.Linear(dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)    
+    
+    def forward(self, x, y, mask):
+        B, N, C = x.shape
+        q = self.q(x)
+        kv = self.kv(y).reshape(B, N, 2, self.num_heads, C//self.num_heads).permute(2, 0, 3, 1, 4)
+        k, v = kv[0], kv[1]
+
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = masked_softmax(attn, mask)
+        attn = self.attn_drop(attn)
+        
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        x = self.proj(x)
+        x = self.proj_drop(x)
+        return x
+    
     
 class TransformerBlock(nn.Module):
     """
@@ -114,12 +146,34 @@ class SparseAttention(nn.Module):
             dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale)
 
         #self.emb_proj = nn.Linear(dim, 2*dim)
-
     def forward(self, x):
-            
         x_dense, mask = sparse_to_dense(x.F, x.C[:, 0].long())
-            
         x_dense = x_dense + self.attn(self.norm1(x_dense), mask)
+        x.F = x_dense[mask]
+
+        return x
+
+class SparseCrossAttention(nn.Module):
+    """
+        A cross attention module that works with sparse tensors.
+    """
+    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, act_layer=nn.GELU, norm_layer=nn.LayerNorm):
+        super().__init__()
+        
+        mlp_hidden_dim = int(dim * mlp_ratio)
+
+        # ATTENTION BLOCK
+        self.norm1 = norm_layer(dim)
+        self.attn = CrossAttention(
+            dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale)
+
+        #self.emb_proj = nn.Linear(dim, 2*dim)
+
+    def forward(self, x, y):
+        x_dense, mask = sparse_to_dense(x.F, x.C[:, 0].long())
+        y_dense, mask = sparse_to_dense(y.F, y.C[:, 0].long())
+            
+        x_dense = x_dense + self.attn(self.norm1(x_dense), y_dense, mask)
         x.F = x_dense[mask]
 
         return x

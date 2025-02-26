@@ -110,9 +110,9 @@ class DownBlock(nn.Module):
                                       for i in range(num_layers)])
         self.down = saved(spnn.Conv3d(ni, nf, 2, stride=2),self) if add_down else spnn.Conv3d(ni, nf, 1)#nn.Identity()
             
-    def forward(self, x, t):
+    def forward(self, x, t, cross=None):
         self.saved = []
-        for resnet in self.resnets: x = resnet(x, t)
+        for resnet in self.resnets: x = resnet(x, t, cross)
         x = self.down(x)
         return x
 
@@ -141,13 +141,13 @@ class SPVDownStage(nn.Module):
         self.mix_block = FeatureMixBlock()
         self.msg += f' -- Feature Mix : {self.mix_block.r}\n' 
     
-    def forward(self, x, z, emb):
+    def forward(self, x, z, emb, cross=None):
 
         # --- Voxel Branch --- #
         self.saved = []
 
         for block in self.downs:
-            x = block(x, emb)
+            x = block(x, emb, cross)
         self.saved += [p for o in self.downs for p in o.saved]
 
         # --- Point Branch --- #
@@ -179,8 +179,8 @@ class UpBlock(nn.Module):
 
         self.up = spnn.Conv3d(prev_nf, ni, 2, stride=2, transposed=True) if add_up else spnn.Conv3d(prev_nf, ni, 1) #nn.Identity()
 
-    def forward(self, x, t, ups):
-        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t)
+    def forward(self, x, t, ups, cross=None):
+        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t, cross)
         return self.up(x)
 
 class SPVUpStage(nn.Module):
@@ -210,11 +210,11 @@ class SPVUpStage(nn.Module):
         self.msg += f' -- Feature Mix : {self.mix_block.r}\n' 
 
     
-    def forward(self, x, z, emb, saved):
+    def forward(self, x, z, emb, saved, cross=None):
 
         # --- Voxel Branch --- #
         for block in self.ups:
-            x = block(x, emb, saved)
+            x = block(x, emb, saved, cross)
 
         # --- Point Branch --- #
         z = self.point_block(z)
@@ -382,7 +382,7 @@ class SPVUnet(nn.Module):
         print(self.msg)
 
 
-    def forward(self, inp):
+    def forward(self, inp, cross=None):
 
         # Input Processing
         x, t = inp
@@ -399,13 +399,13 @@ class SPVUnet(nn.Module):
         saved = [x]
 
         for d in self.down_stages:
-            x, z = d(x, z, emb)
+            x, z = d(x, z, emb, cross)
             saved += [p for p in d.saved]
 
         #x = self.mid_stages(x, emb)
 
         for u in self.up_stages:
-            x, z = u(x, z, emb, saved)
+            x, z = u(x, z, emb, saved, cross)
         
         return self.out_conv(z.F)
 

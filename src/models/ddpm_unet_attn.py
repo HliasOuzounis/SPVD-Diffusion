@@ -6,7 +6,7 @@ import fastcore.all as fc
 from .sparse_utils import PointTensor, initial_voxelize, voxel_to_point
 
 
-from .modules import TimeEmbeddingBlock, SparseAttention
+from .modules import TimeEmbeddingBlock, SparseAttention, SparseCrossAttention
 from .utils import lin, timestep_embedding
 
 def saved(m, blk):
@@ -44,6 +44,7 @@ class EmbResBlock(nn.Module):
         self.attn = False
         if attn_chans: 
             self.attn = SparseAttention(nf, attn_chans)
+            self.cross_attn = SparseCrossAttention(nf, attn_chans)
 
     
     def forward(self, x_in, t, cross=None):
@@ -62,6 +63,8 @@ class EmbResBlock(nn.Module):
 
         if self.attn:
             x = self.attn(x)
+            if cross is not None:
+                x = self.cross_attn(x, cross)
 
         return x
     
@@ -73,9 +76,9 @@ class DownBlock(nn.Module):
         
         self.down = saved(spnn.Conv3d(nf, nf, 2, stride=2),self) if add_down else nn.Identity()
             
-    def forward(self, x, t):
+    def forward(self, x, t, cross=None):
         self.saved = []
-        for resnet in self.resnets: x = resnet(x, t)
+        for resnet in self.resnets: x = resnet(x, t, cross)
         x = self.down(x)
         return x
     
@@ -88,8 +91,8 @@ class UpBlock(nn.Module):
         
         self.up = spnn.Conv3d(nf, nf, 2, stride=2, transposed=True) if add_up else nn.Identity()
 
-    def forward(self, x, t, ups):
-        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t)
+    def forward(self, x, t, ups, cross=None):
+        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t, cross)
         return self.up(x)
 
 
@@ -144,7 +147,7 @@ class SPVUnet(nn.Module):
         
         
 
-    def forward(self, inp):
+    def forward(self, inp, cross=None):
         # Input Processing
         x, t = inp
         z = PointTensor(x.F, x.C.float())
@@ -160,14 +163,14 @@ class SPVUnet(nn.Module):
         saved = [x]
 
         for block in self.downs:
-            x = block(x, emb)
+            x = block(x, emb, cross)
         saved += [p for o in self.downs for p in o.saved]
 
         for mb in self.mid_block:
-            x = mb(x, emb)
+            x = mb(x, emb, cross)
         
         for block in self.ups:
-            x = block(x, emb, saved)
+            x = block(x, emb, saved, cross)
         
         z1 = voxel_to_point(x, z)
         
