@@ -6,7 +6,7 @@ from torch_geometric.utils import to_dense_batch
 
 from ..utils import masked_softmax
 
-__all__ = ['SparseAttention', 'SparseTransformer']
+__all__ = ['SparseAttention', 'SparseTransformer', 'SparseCrossAttention']
            
 
 def sparse_to_dense(x, b):
@@ -71,13 +71,14 @@ class CrossAttention(nn.Module):
     """
         Cross Attention module that can handle a masked input.
     """
-    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0., D_kv=784, D_q=3):
         super().__init__()
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim**-0.5
         self.q = nn.Linear(dim, dim, bias=qkv_bias)
-        self.kv = nn.Linear(dim, dim*2, bias=qkv_bias)
+        image_features = 197
+        self.kv = nn.Linear(image_features, image_features*2, bias=qkv_bias)
         self.attn_drop=nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)    
@@ -171,9 +172,8 @@ class SparseCrossAttention(nn.Module):
 
     def forward(self, x, y):
         x_dense, mask = sparse_to_dense(x.F, x.C[:, 0].long())
-        y_dense, mask = sparse_to_dense(y.F, y.C[:, 0].long())
             
-        x_dense = x_dense + self.attn(self.norm1(x_dense), y_dense, mask)
+        x_dense = x_dense + self.attn(self.norm1(x_dense), y, mask)
         x.F = x_dense[mask]
 
         return x

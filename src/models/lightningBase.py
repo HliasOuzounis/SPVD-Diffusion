@@ -45,8 +45,9 @@ class DiffusionBase(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        inp, target = self.task.prep_data(batch)
-        preds = self(inp)
+        inp, target, image_features = self.task.prep_data(batch)
+        preds = self(inp, image_features)
+        
         loss = self.task.loss_fn(preds, target)
         self.log('val_loss', loss, batch_size=self.vl_batch_size)
 

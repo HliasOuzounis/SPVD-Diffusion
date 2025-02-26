@@ -72,7 +72,7 @@ class ModelNet40(Dataset):
 
         renders = self.render_features[idx]
         selected_render_idx = np.random.randint(0, renders.shape[0])
-        # selected_render = renders[selected_render_idx]
+        # selected_render = self.renders[idx][selected_render_idx].cpu().numpy()
         render_features = renders[selected_render_idx]
         
         std = 0.02

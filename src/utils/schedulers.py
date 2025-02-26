@@ -111,9 +111,10 @@ class DDIM(DDPMBase):
 
 class SchedulerBase:
 
-    def __init__(self, strategy:SchedulingStrategy, save_process=False):
+    def __init__(self, strategy:SchedulingStrategy, save_process=False, dataset=None):
         self.strategy = strategy
         self.save_process = save_process
+        self.dataset = dataset
     
     def get_pc(self, x_t, shape):
         # this functions receives x_t as used by the pipeline returns a cpu tensor
@@ -136,6 +137,8 @@ class SchedulerBase:
         emb = torch.full((bs,), emb, dtype=torch.long).to(device) if emb is not None else None
         
         x_t = self.create_noise(shape, device)
+        if dataset is not None:
+            image_samples = dataset
         preds = [self.get_pc(x_t, shape)] 
 
         for i, t in enumerate(self.strategy.steps):
@@ -262,9 +265,9 @@ class DDPMSparseSchedulerCPU(SparseSchedulerCPU):
         super().__init__(strategy, save_process=save_process, pres=pres)
 
 class DDPMSparseSchedulerGPU(SparseSchedulerGPU):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear', sigma='bt', pres=1e-5, save_process=False):
+    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear', sigma='bt', pres=1e-5, save_process=False, dataset=None):
         strategy = DDPM(beta_min=beta_min, beta_max=beta_max, n_steps=n_steps, mode=mode, sigma=sigma)
-        super().__init__(strategy, save_process=save_process, pres=pres)
+        super().__init__(strategy, save_process=save_process, pres=pres, dataset=dataset)
 
 class DDIMSparseSchedulerCPU(SparseSchedulerCPU):
      def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, s_steps=100, s_mode='linear', mode='linear', pres=1e-5, save_process=False):
