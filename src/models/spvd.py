@@ -326,7 +326,6 @@ class SPVUnet(nn.Module):
         Attn chans:    |   None   |   None    |    None    |
         Kernel size:   |     3    |     3     |      3     |  (only to skip conv blocks during upsampling --> reduce parameters)
         Name:        How to call this layer
-
     """
     def __init__(self, point_channels=3, voxel_size=0.1, 
                  down_blocks = [[(64, 128, 192, 256, 384, 384), (True, True, True, True, False), (None, None, None, 8, 8)]], # only one point skip connection during downsampling

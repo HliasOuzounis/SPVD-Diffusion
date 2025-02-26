@@ -76,7 +76,7 @@ class ModelNet40(Dataset):
         render_features = renders[selected_render_idx]
         
         std = 0.02
-        noise = np.random.normal(0, 0.02, pc.shape)
+        noise = np.random.normal(0, std, pc.shape)
 
         pc += noise
         pc = torch.tensor(pc, dtype=torch.float)
