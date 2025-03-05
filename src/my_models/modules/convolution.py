@@ -176,3 +176,8 @@ class UpBlock(nn.Module):
             )
             for i in range(num_layers)
         )
+    
+    def forward(self, x, t, image_features=None):
+        for res_block in self.res_blocks:
+            x = res_block(x, t, image_features)
+        return x

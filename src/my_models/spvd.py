@@ -145,6 +145,7 @@ class SPVUpStage(nn.Module):
     def __init__(
         self,
         features_list: Iterable[int],
+        down_output_features: Iterable[int],
         t_emb_features: int,
         num_layers_list: Iterable[int] | int = 1,
         attn_heads: Iterable[int] | int | None = None,
@@ -163,7 +164,7 @@ class SPVUpStage(nn.Module):
         super().__init__()
         self.up_blocks = nn.ModuleList(
             UpBlock(
-                features_in=features_list[i],
+                features_in=features_list[i] + (down_output_features.pop() if i == 0 else 0),
                 features_out=features_list[i + 1],
                 t_emb_features=t_emb_features,
                 add_up=(i != len(features_list) - 2),
@@ -257,9 +258,12 @@ class SPVUnet(nn.Module):
             for down_block in down_blocks
         )
 
+        down_output_features = sum(down_blocks[i]['features_list'] for i in range(len(down_blocks)))
+
         self.up_stages = nn.ModuleList(
             SPVUpStage(
                 features_list=up_block["features_list"],
+                down_output_features=down_output_features,
                 t_emb_features=t_emb_features,
                 num_layers_list=up_block["num_layers_list"],
                 attn_heads=up_block["attn_heads"],
@@ -267,7 +271,7 @@ class SPVUnet(nn.Module):
             for up_block in up_blocks
         )
 
-        self.conv_out = SharedMLP(down_blocks[-1]["features_list"][-1], point_channels)
+        self.conv_out = SharedMLP(up_blocks[-1]["features_list"][-1], point_channels)
 
     def forward(self, inp, image_features=None):
         """
@@ -312,4 +316,4 @@ class SPVUnet(nn.Module):
         for up_stage in self.up_stages:
             x, z = up_stage(x, z, t, skip_connections, image_features)
 
-        return self.conv_out(z)
+        return self.conv_out(z).F
