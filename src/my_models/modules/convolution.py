@@ -47,7 +47,7 @@ class SparseResidualBlock(nn.Module):
     ):
         super().__init__()
         self.conv1 = SparseConv3DBlock(features_in, features_out, kernel_size)
-        # self.t_embedding = TimeEbeddingBlock(t_emb_features, features_out)
+        self.t_embedding = TimeEbeddingBlock(t_emb_features, features_out)
         self.conv2 = SparseConv3DBlock(features_out, features_out, kernel_size)
 
         self.res_connection = (

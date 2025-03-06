@@ -5,6 +5,7 @@ import torchsparse.nn as spnn
 from .modules.convolution import DownBlock, UpBlock
 from .modules.mlp import SharedMLP
 from .modules.sparse_utils import mixed_mix, PointTensor, initial_voxelize
+from .modules.embeddings import timestep_embedding
 
 from typing import Iterable
 
@@ -244,6 +245,14 @@ class SPVUnet(nn.Module):
         self.point_res = point_res
         self.voxel_size = voxel_size
 
+        self.t_emb_features = t_emb_features
+        self.t_emb_mlp = nn.Sequential(
+            nn.BatchNorm1d(t_emb_features),
+            nn.Linear(t_emb_features, t_emb_features * 2),
+            nn.SiLU(),
+            nn.Linear(t_emb_features * 2, t_emb_features),
+        )
+
         self.stem_stage = StemStage(
             features_in=point_channels, features_out=down_blocks[0]["features_list"][0]
         )
@@ -297,8 +306,8 @@ class SPVUnet(nn.Module):
         x, t = inp
         z = PointTensor(x.F, x.C.float())
 
-        t = ...  # TimeStamp embedding
-        time_embeddings = ...  # TimeStamp embedding
+        t = timestep_embedding(t, self.t_emb_features)  # TimeStamp embedding
+        t = self.t_emb_mlp(t)  # TimeStamp embedding
 
         # Initial Voxelization
         x0 = initial_voxelize(z, self.point_res, self.voxel_size)
@@ -311,7 +320,7 @@ class SPVUnet(nn.Module):
             x, z, saved = down_stage(x, z, t, image_features)
             skip_connections += saved
             
-        return self.conv_out(z).F
+        # return self.conv_out(z).F
     
         for up_stage in self.up_stages:
             x, z = up_stage(x, z, t, skip_connections, image_features)
