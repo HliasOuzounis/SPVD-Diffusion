@@ -36,7 +36,7 @@ class ModelNet40(Dataset):
         
         self.pointclouds = []
         self.renders = []
-        self.render_features = []
+        # self.render_features = []
         
         for category in os.listdir(pc_path):
             if self.categories and category not in self.categories:
@@ -57,7 +57,7 @@ class ModelNet40(Dataset):
                     model_views.append(preprocessed)
                 model_views = torch.stack(model_views)
                 self.renders.append(model_views)
-                self.render_features.append(self.visual_transformer(model_views))
+                # self.render_features.append(self.visual_transformer(model_views))
             
     
     def __len__(self) -> int:
@@ -70,10 +70,10 @@ class ModelNet40(Dataset):
         idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
         pc = pc[idxs, :]
 
-        renders = self.render_features[idx]
-        selected_render_idx = np.random.randint(0, renders.shape[0])
+        # renders = self.render_features[idx]
+        # selected_render_idx = np.random.randint(0, renders.shape[0])
         # selected_render = self.renders[idx][selected_render_idx].cpu().numpy()
-        render_features = renders[selected_render_idx]
+        # render_features = renders[selected_render_idx]
         
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)
@@ -85,7 +85,7 @@ class ModelNet40(Dataset):
             "idx": idx,
             "pc": pc,
             # "render": selected_render,
-            "render_features": render_features,
+            # "render_features": render_features,
         }
     
 class ModelNet40Sparse(ModelNet40):
@@ -106,7 +106,7 @@ class ModelNet40Sparse(ModelNet40):
         
         pc = data["pc"]
         # render = data["render"]
-        render_features = data["render_features"]
+        # render_features = data["render_features"]
         
         pc, t, noise = self.noise_scheduler(pc)
         
@@ -129,7 +129,7 @@ class ModelNet40Sparse(ModelNet40):
             "t": t,
             "noise": noise,
             # "render": render,
-            "render-features": render_features
+            # "render-features": render_features
         }
         
 def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:

@@ -110,9 +110,9 @@ class DownBlock(nn.Module):
                                       for i in range(num_layers)])
         self.down = saved(spnn.Conv3d(ni, nf, 2, stride=2),self) if add_down else spnn.Conv3d(ni, nf, 1)#nn.Identity()
             
-    def forward(self, x, t, cross=None):
+    def forward(self, x, t):
         self.saved = []
-        for resnet in self.resnets: x = resnet(x, t, cross)
+        for resnet in self.resnets: x = resnet(x, t)
         x = self.down(x)
         return x
 
@@ -141,13 +141,13 @@ class SPVDownStage(nn.Module):
         self.mix_block = FeatureMixBlock()
         self.msg += f' -- Feature Mix : {self.mix_block.r}\n' 
     
-    def forward(self, x, z, emb, cross=None):
+    def forward(self, x, z, emb):
 
         # --- Voxel Branch --- #
         self.saved = []
 
         for block in self.downs:
-            x = block(x, emb, cross)
+            x = block(x, emb)
         self.saved += [p for o in self.downs for p in o.saved]
 
         # --- Point Branch --- #
@@ -179,8 +179,8 @@ class UpBlock(nn.Module):
 
         self.up = spnn.Conv3d(prev_nf, ni, 2, stride=2, transposed=True) if add_up else spnn.Conv3d(prev_nf, ni, 1) #nn.Identity()
 
-    def forward(self, x, t, ups, cross=None):
-        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t, cross)
+    def forward(self, x, t, ups):
+        for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t)
         return self.up(x)
 
 class SPVUpStage(nn.Module):
@@ -210,11 +210,11 @@ class SPVUpStage(nn.Module):
         self.msg += f' -- Feature Mix : {self.mix_block.r}\n' 
 
     
-    def forward(self, x, z, emb, saved, cross=None):
+    def forward(self, x, z, emb, saved):
 
         # --- Voxel Branch --- #
         for block in self.ups:
-            x = block(x, emb, saved, cross)
+            x = block(x, emb, saved)
 
         # --- Point Branch --- #
         z = self.point_block(z)
@@ -326,6 +326,7 @@ class SPVUnet(nn.Module):
         Attn chans:    |   None   |   None    |    None    |
         Kernel size:   |     3    |     3     |      3     |  (only to skip conv blocks during upsampling --> reduce parameters)
         Name:        How to call this layer
+
     """
     def __init__(self, point_channels=3, voxel_size=0.1, 
                  down_blocks = [[(64, 128, 192, 256, 384, 384), (True, True, True, True, False), (None, None, None, 8, 8)]], # only one point skip connection during downsampling
@@ -381,7 +382,7 @@ class SPVUnet(nn.Module):
         print(self.msg)
 
 
-    def forward(self, inp, cross=None):
+    def forward(self, inp):
 
         # Input Processing
         x, t = inp
@@ -398,13 +399,12 @@ class SPVUnet(nn.Module):
         saved = [x]
 
         for d in self.down_stages:
-            x, z = d(x, z, emb, cross)
+            x, z = d(x, z, emb)
             saved += [p for p in d.saved]
 
         #x = self.mid_stages(x, emb)
 
         for u in self.up_stages:
-            x, z = u(x, z, emb, saved, cross)
+            x, z = u(x, z, emb, saved)
         
         return self.out_conv(z.F)
-

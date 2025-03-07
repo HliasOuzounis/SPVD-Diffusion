@@ -1,6 +1,7 @@
 # imports
 import torch
 import math
+from tqdm import tqdm
 from torchsparse.utils.quantize import sparse_quantize
 from torchsparse import SparseTensor
 from torchsparse.utils.collate import sparse_collate_fn
@@ -111,10 +112,9 @@ class DDIM(DDPMBase):
 
 class SchedulerBase:
 
-    def __init__(self, strategy:SchedulingStrategy, save_process=False, dataset=None):
+    def __init__(self, strategy:SchedulingStrategy, save_process=False):
         self.strategy = strategy
         self.save_process = save_process
-        self.dataset = dataset
     
     def get_pc(self, x_t, shape):
         # this functions receives x_t as used by the pipeline returns a cpu tensor
@@ -137,14 +137,12 @@ class SchedulerBase:
         emb = torch.full((bs,), emb, dtype=torch.long).to(device) if emb is not None else None
         
         x_t = self.create_noise(shape, device)
-        if dataset is not None:
-            image_samples = dataset
         preds = [self.get_pc(x_t, shape)] 
 
-        for i, t in enumerate(self.strategy.steps):
+        for i, t in enumerate(tqdm(self.strategy.steps)):
             x_t = self.sample_step(model, x_t, t, i, emb, shape, device)
-            if save_process: preds.append(self.get_pc(x_t, shape))
-        
+            if save_process: preds.append(self.get_pc(x_t, shape)) 
+
         return preds if save_process else self.get_pc(x_t, shape)
 
 
@@ -265,9 +263,9 @@ class DDPMSparseSchedulerCPU(SparseSchedulerCPU):
         super().__init__(strategy, save_process=save_process, pres=pres)
 
 class DDPMSparseSchedulerGPU(SparseSchedulerGPU):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear', sigma='bt', pres=1e-5, save_process=False, dataset=None):
+    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear', sigma='bt', pres=1e-5, save_process=False):
         strategy = DDPM(beta_min=beta_min, beta_max=beta_max, n_steps=n_steps, mode=mode, sigma=sigma)
-        super().__init__(strategy, save_process=save_process, pres=pres, dataset=dataset)
+        super().__init__(strategy, save_process=save_process, pres=pres)
 
 class DDIMSparseSchedulerCPU(SparseSchedulerCPU):
      def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, s_steps=100, s_mode='linear', mode='linear', pres=1e-5, save_process=False):
@@ -278,4 +276,3 @@ class DDIMSparseSchedulerGPU(SparseSchedulerGPU):
     def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, s_steps=100, s_mode='linear', mode='linear', pres=1e-5, save_process=False):
         strategy = DDIM(beta_min=beta_min, beta_max=beta_max, n_steps=n_steps, mode=mode, s_steps=s_steps, s_mode=s_mode)
         super().__init__(strategy, save_process=save_process, pres=pres)
-

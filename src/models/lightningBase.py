@@ -14,10 +14,9 @@ class Task(ABC):
 
 class SparseGeneration(Task):
     def prep_data(self, batch):
-        noisy_data, t, noise, render_features = batch['input'], batch['t'], batch['noise'], batch['render-features']
+        noisy_data, t, noise = batch['input'], batch['t'], batch['noise']
         inp = (noisy_data, t)
-        return inp, noise.F, render_features
-    
+        return inp, noise.F
     def loss_fn(self, preds, target):
         return F.mse_loss(preds, target)
 
@@ -29,32 +28,30 @@ class DiffusionBase(L.LightningModule):
         self.task = task
         self.learning_rate = lr
         
-    def forward(self, x, cross=None):
-        return self.model(x, cross)
+    def forward(self, x):
+        return self.model(x)
     
     def training_step(self, batch, batch_idx):
         # get data from the batch
-        inp, target, image_features = self.task.prep_data(batch)
+        inp, target = self.task.prep_data(batch)
 
-        image_features = None
         # activate the network for noise prediction
-        preds = self(inp, image_features)
+        preds = self(inp)
+
         # calculate the loss
         loss = self.task.loss_fn(preds, target)
 
-        # log the training loss on each epoch
-        self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=self.tr_batch_size)
+        self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
+
         return loss
 
     def validation_step(self, batch, batch_idx):
-        inp, target, image_features = self.task.prep_data(batch)
-
-        image_features = None
-        
-        preds = self(inp, image_features)
-        
+        inp, target = self.task.prep_data(batch)
+        preds = self(inp)
         loss = self.task.loss_fn(preds, target)
-        self.log('val_loss', loss, batch_size=self.vl_batch_size)
+        
+        self.log('val_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
+
 
     def configure_optimizers(self):
         # Create the optimizer
@@ -83,4 +80,3 @@ class DiffusionBase(L.LightningModule):
         val_loader = self.trainer.val_dataloaders
         if val_loader:
             self.vl_batch_size = val_loader.batch_size
-

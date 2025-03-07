@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torchsparse
 import torchsparse.nn as spnn
@@ -130,6 +131,7 @@ class SPVDownStage(nn.Module):
         saved = []
         for down_block in self.down_blocks:
             x = down_block(x, t, image_features)
+            assert not torch.isnan(x.F).any(), f"x contains NaN values, down_block {len(saved)}"
             saved.append(x)
 
         x, z = mixed_mix(x, residual)
@@ -165,8 +167,9 @@ class SPVUpStage(nn.Module):
         super().__init__()
         self.up_blocks = nn.ModuleList(
             UpBlock(
-                features_in=features_list[i] + (down_output_features.pop() if i == 0 else 0),
+                features_in=features_list[i],
                 features_out=features_list[i + 1],
+                prev_downsample_features=down_output_features.pop(),
                 t_emb_features=t_emb_features,
                 add_up=(i != len(features_list) - 2),
                 num_layers=num_layers_list[i],
@@ -212,6 +215,7 @@ class SPVUpStage(nn.Module):
         residual = self.residual(z)
 
         for up_block in self.up_blocks:
+            y = skip_connections[-1]
             x = torchsparse.cat([x, skip_connections.pop()])
             x = up_block(x, t, image_features)
 
@@ -238,9 +242,9 @@ class SPVUnet(nn.Module):
 
         assert sum(
             len(down_block["features_list"]) for down_block in down_blocks
-        ) == sum(
+        ) - len(down_blocks) == sum(
             len(up_block["features_list"]) for up_block in up_blocks
-        ), "Down and Up must have the same number of stages"
+        ) - len(up_blocks), "Down and Up must have the same number of stages"
 
         self.point_res = point_res
         self.voxel_size = voxel_size
@@ -266,8 +270,10 @@ class SPVUnet(nn.Module):
             )
             for down_block in down_blocks
         )
-
-        down_output_features = sum(down_blocks[i]['features_list'] for i in range(len(down_blocks)))
+        
+        down_output_features = []
+        for down_block in down_blocks:
+            down_output_features += down_block["features_list"]
 
         self.up_stages = nn.ModuleList(
             SPVUpStage(
@@ -314,15 +320,24 @@ class SPVUnet(nn.Module):
         
         # Initial Convolution
         x, z = self.stem_stage(x0, z)
+        
+        assert not torch.isnan(x.F).any(), "x contains NaN values, stem_stage"
+        assert not torch.isnan(z.F).any(), "z contains NaN values, stem_stage"
 
         skip_connections = []
         for down_stage in self.down_stages:
-            x, z, saved = down_stage(x, z, t, image_features)
-            skip_connections += saved
+            x, z, residual = down_stage(x, z, t, image_features)
+            skip_connections += residual
             
-        # return self.conv_out(z).F
+        assert not torch.isnan(x.F).any(), "x contains NaN values, down_stage"
+        assert not torch.isnan(z.F).any(), "z contains NaN values, down_stage"
     
         for up_stage in self.up_stages:
             x, z = up_stage(x, z, t, skip_connections, image_features)
+        
+        assert not torch.isnan(x.F).any(), "x contains NaN values, up_stage"
+        assert not torch.isnan(z.F).any(), "z contains NaN values, up_stage"
 
+        print(len(skip_connections))
+        
         return self.conv_out(z).F
