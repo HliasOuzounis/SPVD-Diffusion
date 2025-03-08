@@ -116,7 +116,7 @@ class DownBlock(nn.Module):
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
                 features_in=features_in,
-                features_out=features_in,
+                features_out=features_out,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,
             )
@@ -125,9 +125,10 @@ class DownBlock(nn.Module):
 
         # Resoluition reduction when not on final down. Why?
         self.down = (
-            spnn.Conv3d(features_in, features_out, 2, stride=2)
+            spnn.Conv3d(features_out, features_out, 2, stride=2)
             # if add_down
             # else spnn.Conv3d(features_in, features_out, 1)
+            # spnn.Conv3d(features_in, features_out, 1)
         )
 
     def forward(self, x, t, image_features=None):
@@ -179,6 +180,7 @@ class UpBlock(nn.Module):
             for i in range(num_layers)
         )
         self.up_sample = spnn.Conv3d(features_out, features_out, 2, stride=2, transposed=True)
+        # self.up_sample = spnn.Conv3d(features_out, features_out, 1)
     
     def forward(self, x, t, image_features=None):
         """

@@ -77,7 +77,7 @@ class SPVDownStage(nn.Module):
             attn_heads = [None] * (len(features_list) - 1)
         
         assert (
-            len(features_list) == len(num_layers_list) + 1 == len(attn_heads) + 1
+            len(features_list) - 1 == len(num_layers_list) == len(attn_heads)
         ), "Features, num_layers and attn_heads must have the same length"
 
         super().__init__()
@@ -161,7 +161,7 @@ class SPVUpStage(nn.Module):
             attn_heads = [None] * (len(features_list) - 1)
 
         assert (
-            len(features_list) == len(num_layers_list) + 1 == len(attn_heads) + 1
+            len(features_list) - 1 == len(num_layers_list) == len(attn_heads)
         ), "Features, num_layers and attn_heads must have the same length"
 
         super().__init__()
@@ -236,7 +236,7 @@ class SPVUnet(nn.Module):
         t_emb_features: int,
         point_channels: int = 3,
         point_res: float = 1e-5,
-        voxel_size: float = 0.05,
+        voxel_size: float = 0.1,
     ):
         super().__init__()
 
@@ -337,7 +337,5 @@ class SPVUnet(nn.Module):
         
         assert not torch.isnan(x.F).any(), "x contains NaN values, up_stage"
         assert not torch.isnan(z.F).any(), "z contains NaN values, up_stage"
-
-        print(len(skip_connections))
         
         return self.conv_out(z).F

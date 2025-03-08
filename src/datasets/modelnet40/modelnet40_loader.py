@@ -50,13 +50,13 @@ class ModelNet40(Dataset):
 
                 file, _ = os.path.splitext(file)
     
-                model_views = []
-                for view in os.listdir(os.path.join(renders_path, category, self.split, file)):
-                    image = Image.open(os.path.join(renders_path, category, self.split, file, view)).convert("RGB")
-                    preprocessed = self.visual_transformer.preprocess(image)['pixel_values'][0]
-                    model_views.append(preprocessed)
-                model_views = torch.stack(model_views)
-                self.renders.append(model_views)
+                # model_views = []
+                # for view in os.listdir(os.path.join(renders_path, category, self.split, file)):
+                #     image = Image.open(os.path.join(renders_path, category, self.split, file, view)).convert("RGB")
+                #     preprocessed = self.visual_transformer.preprocess(image)['pixel_values'][0]
+                #     model_views.append(preprocessed)
+                # model_views = torch.stack(model_views)
+                # self.renders.append(model_views)
                 # self.render_features.append(self.visual_transformer(model_views))
             
     
