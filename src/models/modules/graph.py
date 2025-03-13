@@ -29,7 +29,7 @@ class TimeEmbeddingBlock(MessagePassing):
         t = self.proj_mlp(F.silu(t)) #[:, :]
         #print(t.shape)
 
-        return  self.propagate(edge_index=edge_index, x=x, t=t)
+        return super().propagate(edge_index=edge_index, x=x, t=t)
     
     
     def message(self, x_i, t_j):

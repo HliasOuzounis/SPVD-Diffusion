@@ -137,13 +137,12 @@ class SchedulerBase:
         emb = torch.full((bs,), emb, dtype=torch.long).to(device) if emb is not None else None
         
         x_t = self.create_noise(shape, device)
-        # preds = [self.get_pc(x_t, shape)]
+        preds = [self.get_pc(x_t, shape)]
 
         with torch.no_grad():
+            # for i, t in enumerate(self.strategy.steps):
             for i, t in enumerate(tqdm(self.strategy.steps)):
                 x_t = self.sample_step(model, x_t, t, i, emb, shape, device)
-                torch.cuda.synchronize()
-                torch.cuda.empty_cache()
                 if save_process: 
                     preds.append(self.get_pc(x_t, shape)) 
         return self.get_pc(x_t, shape)
@@ -176,6 +175,8 @@ class SchedulerBase:
         return x_t
 
     def create_noise(self, shape, device):
+        torch.manual_seed(0)
+        np.random.seed(0)
         return torch.randn(shape).to(device)
 
     @abstractmethod

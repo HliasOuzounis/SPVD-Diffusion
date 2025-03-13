@@ -9,22 +9,17 @@ torch.set_float32_matmul_precision('medium')
 def main():
     path = "../data/ModelNet40"
     categories = ['bottle']
-    tr, te = get_dataloaders(path, categories=categories)
+    # tr, te = get_dataloaders(path, categories=categories)
     
     
     down_blocks = [{
-        "features_list": [32, 64, 128],
+        "features_list": [32, 32, 192, 256],
         "num_layers_list": 1,
-        "attn_heads": (None, None)
+        "attn_heads": None
     }]
     up_blocks = [
-        # {
-        #     "features_list": [256, 192, 192],
-        #     "num_layers_list": 2,
-        #     "attn_heads": 8
-        # },
         {
-            "features_list": [128, 64, 32],
+            "features_list": [256, 192, 32, 32],
             "num_layers_list": 2,
             "attn_heads": None
         },
@@ -51,21 +46,16 @@ def main():
         callbacks=[checkpoint_callback]
     )
     # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
+
+    m = models.SPVD_S()
+    model = models.DiffusionBase(m, lr=lr)
+    # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
     
     from utils.schedulers import DDPMSparseSchedulerGPU
+    ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02)
 
-    ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02, pres=1e-5)
-
-    preds = ddpm_sched.sample(model.cuda().eval(), 16, 2048)
-
-    # ----------------------------
-    # model2 = models.SPVD() 
-    # model2 = models.DiffusionBase(model2, lr=lr)
-
-    # trainer.fit(model=model2, train_dataloaders=tr, val_dataloaders=te)
-
-    # preds = ddpm_sched.sample(model2.cuda().eval(), 16, 2048)
-
+    model = model.cuda()
+    preds = ddpm_sched.sample(model, 2, 2048)
 
     from utils.visualization import visualize_notebook
     visualize_notebook(preds, x_offset=2.5, y_offset=2.5, point_size=0.025)

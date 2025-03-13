@@ -114,6 +114,8 @@ class DownBlock(nn.Module):
         self.saved = []
         for resnet in self.resnets: x = resnet(x, t)
         x = self.down(x)
+
+        x.C[:, 0] = torch.where(x.C[:, 0] > 1, torch.tensor(1, device=x.C.device), x.C[:, 0])
         return x
 
 class SPVDownStage(nn.Module):

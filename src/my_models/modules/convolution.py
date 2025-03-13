@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torchsparse.nn as spnn
 
-from .embeddings import TimeEbeddingBlock
+from .embeddings import TimeEmbeddingBlock
 from .attention import SparseAttention, SparseCrossAttention
 
 
@@ -48,7 +48,7 @@ class SparseResidualBlock(nn.Module):
         super().__init__()
         self.f_in = features_in
         self.conv1 = SparseConv3DBlock(features_in, features_out, kernel_size)
-        self.t_embedding = TimeEbeddingBlock(t_emb_features, features_out)
+        self.t_embedding = TimeEmbeddingBlock(t_emb_features, features_out)
         self.conv2 = SparseConv3DBlock(features_out, features_out, kernel_size)
 
         self.res_connection = (
@@ -154,7 +154,24 @@ class DownBlock(nn.Module):
         """
         for res_block in self.res_blocks:
             x = res_block(x, t, image_features)
+        
+        import torch
+        a = x.C[:, 0]
+        a_sorted, _ = torch.sort(a)
+        print("Sorted Mask Before:", a_sorted)
+        # Save x before downsampling
+        # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_before_down.pt')
+        
         x = self.down(x)
+        
+        a = x.C[:, 0]
+        a_sorted, _ = torch.sort(a)
+        print("Sorted Mask After:", a_sorted)
+        
+        # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_after_down.pt')
+
+        x.C[:, 0] = torch.where(x.C[:, 0] > 1, torch.tensor(1, device=x.C.device), x.C[:, 0])
+        
         return x
 
 
