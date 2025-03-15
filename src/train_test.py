@@ -9,7 +9,7 @@ torch.set_float32_matmul_precision('medium')
 def main():
     path = "../data/ModelNet40"
     categories = ['bottle']
-    # tr, te = get_dataloaders(path, categories=categories)
+    tr, te = get_dataloaders(path, categories=categories)
     
     
     down_blocks = [{

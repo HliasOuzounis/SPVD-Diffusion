@@ -24,6 +24,7 @@ model_params = {
 
 diffusion_steps = 1000
 starting_checkpoint = f"../checkpoints/ModelNet/distillation/{diffusion_steps}-steps.ckpt"
+retrain = False
 
 def distillation_init():
     distillation_agent = DistillationProcess(lr=1e-4)
@@ -37,31 +38,29 @@ def main():
     
     N = diffusion_steps
     
-    if not os.path.exists(starting_checkpoint):
+    if not os.path.exists(starting_checkpoint) or retrain:
         print(f"Starting checkpoint {starting_checkpoint} not found.")
         print("Training the model from scratch.")
+
         model = Student(model_params)
-        train(model, starting_checkpoint, tr, te)
+        train(model, tr, te, epochs=1)
+        torch.save(model.state_dict(), starting_checkpoint)
     
     while N > 0:
         previous_checkpoint = f"../checkpoints/ModelNet/distillation/{N}-steps.ckpt"
         distillation_agent.set_teacher(Teacher(model_params, previous_checkpoint, N))
         distillation_agent.set_student(Student(model_params))
 
-        checkpoint_callback = ModelCheckpoint(
-            dirpath=f'../checkpoints/ModelNet40/distillation/',
-            filename=f'{N // 2}-steps.ckpt',
-            save_last=True
-        )
         trainer = L.Trainer(
-            max_epochs=40, 
-            callbacks=[checkpoint_callback],
+            max_epochs=1, 
+            callbacks=[],
             gradient_clip_val=10.0,
         )
 
         trainer.fit(distillation_agent, tr, te)
         N //= 2
 
+        torch.save(distillation_agent.student.state_dict(), f"../checkpoints/ModelNet/distillation/{N}-steps.ckpt")
         print(f"Trained Student for {N} steps.")
 
 if __name__ == "__main__":

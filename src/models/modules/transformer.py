@@ -56,7 +56,7 @@ class Attention(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C//self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
-        print(q.shape, k.shape, v.shape)
+        # print(q.shape, k.shape, v.shape)
         attn = (q @ k.transpose(-2, -1)) * self.scale
         #attn = attn.softmax(dim=-1)
         attn = masked_softmax(attn, mask)

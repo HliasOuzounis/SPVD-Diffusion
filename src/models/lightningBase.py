@@ -24,12 +24,12 @@ class DiffusionBase(L.LightningModule):
 
     def __init__(self, model, task=SparseGeneration(), lr=0.0002):
         super().__init__()
-        self.model = model
+        self.student = model
         self.task = task
         self.learning_rate = lr
         
     def forward(self, x):
-        return self.model(x)
+        return self.student(x)
     
     def training_step(self, batch, batch_idx):
         # get data from the batch

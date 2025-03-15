@@ -7,19 +7,22 @@ import torch
 import lightning as L
 from lightning.pytorch.callbacks import ModelCheckpoint
 
-def train(model, checkpoint_path, training_set, test_set, epochs=40, lr=1e-4):
+def train(model, training_set, test_set, epochs=40, checkpoint_path=None, lr=1e-4):
     model = models.DiffusionBase(model, lr=lr)
 
-    checkpoint_path, file_name = os.path.split(checkpoint_path)
-    checkpoint_callback = ModelCheckpoint(
-        path=checkpoint_path,
-        filename=file_name,
-        save_last=True
-    )
+    if checkpoint_path is not None:
+        checkpoint_path, file_name = os.path.split(checkpoint_path)
+        file_name = os.path.splitext(file_name)[0]
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=checkpoint_path,
+            filename=file_name,
+            save_last=True
+        )
+        
     trainer = L.Trainer(
         max_epochs=epochs,
         gradient_clip_val=10.0,
-        callbacks=[checkpoint_callback]
+        callbacks=[] if checkpoint_path is None else [checkpoint_callback]
     )
 
     trainer.fit(model=model, train_dataloaders=training_set, val_dataloaders=test_set)

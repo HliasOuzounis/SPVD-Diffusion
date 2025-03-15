@@ -59,3 +59,13 @@ class DistillationProcess(L.LightningModule):
         loss = self.task.loss_fn(student_preds, teacher_preds)
         
         self.log('val_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
+    
+    def configure_optimizers(self):
+        # Create the optimizer
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=0.05)
+
+        # Create a dummy scheduler (we will update `total_steps` later)
+        self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.learning_rate, total_steps=1)
+
+        # Return optimizer and scheduler (scheduler will be updated in `on_fit_start`)
+        return [optimizer], [{'scheduler': self.lr_scheduler, 'interval': 'step'}]
