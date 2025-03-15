@@ -2,16 +2,35 @@ from datasets.modelnet40.modelnet40_loader import get_dataloaders, ModelNet40
 from my_models.spvd import SPVUnet
 import models
 
+import os
 import torch
-torch.cuda.empty_cache()
-torch.set_float32_matmul_precision('medium')
+import lightning as L
+from lightning.pytorch.callbacks import ModelCheckpoint
+
+def train(model, checkpoint_path, training_set, test_set, epochs=40, lr=1e-4):
+    model = models.DiffusionBase(model, lr=lr)
+
+    checkpoint_path, file_name = os.path.split(checkpoint_path)
+    checkpoint_callback = ModelCheckpoint(
+        path=checkpoint_path,
+        filename=file_name,
+        save_last=True
+    )
+    trainer = L.Trainer(
+        max_epochs=epochs,
+        gradient_clip_val=10.0,
+        callbacks=[checkpoint_callback]
+    )
+
+    trainer.fit(model=model, train_dataloaders=training_set, val_dataloaders=test_set)
+
+    return model
 
 def main():
     path = "../data/ModelNet40"
     categories = ['bottle']
-    # tr, te = get_dataloaders(path, categories=categories)
-    
-    
+    tr, te = get_dataloaders(path, categories=categories)
+
     down_blocks = [{
         "features_list": [32, 32, 192, 256],
         "num_layers_list": 1,
@@ -28,38 +47,8 @@ def main():
 
     model = SPVUnet(down_blocks, up_blocks, t_emb_features)
 
-    import models
-
     lr = 1e-4
     model = models.DiffusionBase(model, lr=lr)
 
-    import lightning as L
-    from lightning.pytorch.callbacks import ModelCheckpoint
-    checkpoint_callback = ModelCheckpoint(
-        dirpath='../checkpoints/ModelNet/testing',
-        filename='{epoch}-{val_loss:.2f}',
-        save_last=True  # Save the last checkpoint
-    )
-    trainer = L.Trainer(
-        max_epochs=40,
-        gradient_clip_val=10.0,
-        callbacks=[checkpoint_callback]
-    )
-    # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
-
-    m = models.SPVD_S()
-    model = models.DiffusionBase(m, lr=lr)
-    # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
-    
-    from utils.schedulers import DDPMSparseSchedulerGPU
-    ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02)
-
-    model = model.cuda()
-    preds = ddpm_sched.sample(model, 2, 2048)
-
-    from utils.visualization import visualize_notebook
-    visualize_notebook(preds, x_offset=2.5, y_offset=2.5, point_size=0.025)
-
-if __name__ == "__main__":
-    main()
-
+    checkpoint_path = '../checkpoints/ModelNet/testing/{epoch}-{val_loss:.2f}'
+    train(model, checkpoint_path, tr, te)
