@@ -97,8 +97,8 @@ class ModelNet40Sparse(ModelNet40):
         self.set_scheduler()
         
     def set_scheduler(self, beta_min=0.0001, beta_max=0.02, n_steps=1024, mode='linear'):
-        # self.noise_scheduler = DDPMScheduler(beta_min, beta_max, n_steps, mode)
-        self.noise_scheduler = NoiseSchedulerDDPM(beta_min, beta_max, n_steps, mode)
+        self.noise_scheduler = DDPMScheduler(beta_min, beta_max, n_steps, mode)
+        # self.noise_scheduler = NoiseSchedulerDDPM(beta_min, beta_max, n_steps, mode)
     
     def set_voxel_size(self, voxel_size: float = 1e-8) -> None:
         self.voxel_size = voxel_size

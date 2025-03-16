@@ -12,10 +12,13 @@ class Conv(nn.Module):
         return self.conv(x)
 
 c = Conv()
-x = torch.load("x_before_down.pt")
+device = torch.device("cuda")
+x = torch.load("x_before_down.pt").to(device)
+c = c.to(device)
 
 y = c(x)
 
 mask = y.C[:, 0]
-
+ind = torch.argsort(mask)
+print(y.C[ind])
 print(mask.min(), mask.max())

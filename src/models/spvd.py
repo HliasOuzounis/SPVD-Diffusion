@@ -113,9 +113,17 @@ class DownBlock(nn.Module):
     def forward(self, x, t):
         self.saved = []
         for resnet in self.resnets: x = resnet(x, t)
+
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print(f'Mask Before DownConv: {mask[ind]}')
+        
         x = self.down(x)
 
-        x.C[:, 0] = torch.where(x.C[:, 0] > 1, torch.tensor(1, device=x.C.device), x.C[:, 0])
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print(f'Mask After DownConv: {mask[ind]}')
+        
         return x
 
 class SPVDownStage(nn.Module):
@@ -183,7 +191,19 @@ class UpBlock(nn.Module):
 
     def forward(self, x, t, ups):
         for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t)
-        return self.up(x)
+        
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print(f'Mask Before UpConv: {mask[ind]}')
+        
+        x = self.up(x)
+
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print(f'Mask After UpConv: {mask[ind]}')
+        
+        return x
+
 
 class SPVUpStage(nn.Module):
     def __init__(self, n_emb, nfs = (128, 64, 32), add_up=(True, True), num_layers=1, attn_chans=(None, None), ks=(3, 3), name='SPVDUpStage'):

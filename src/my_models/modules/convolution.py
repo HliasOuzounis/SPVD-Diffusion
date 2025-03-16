@@ -157,16 +157,16 @@ class DownBlock(nn.Module):
             x = res_block(x, t, image_features)
             
         a = x.C[:, 0]
-        a_sorted, _ = torch.sort(a)
-        print("Sorted Mask Before DownConv:", a_sorted)
+        a = torch.sort(a).indices
+        print("Mask Before DownConv:", x.C[a])
         # Save x before downsampling
         # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_before_down.pt')
         
         x = self.down(x)
         
         a = x.C[:, 0]
-        a_sorted, _ = torch.sort(a)
-        print("Sorted Mask After DownConv:", a_sorted)
+        a = torch.sort(a).indices
+        print("Mask After DownConv:", x.C[a])
         
         # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_after_down.pt')
 
@@ -224,13 +224,13 @@ class UpBlock(nn.Module):
             x = res_block(x, t, image_features)
         
         a = x.C[:, 0]
-        a_sorted, _ = torch.sort(a)
-        print("Sorted Mask Before UpConv:", a_sorted)
+        a = torch.sort(a).indices
+        print("Mask Before UpConv:", x.C[a])
         
         x = self.up_sample(x)
         
         a = x.C[:, 0]
-        a_sorted, _ = torch.sort(a)
-        print("Sorted Mask After UpConv:", a_sorted)
+        a = torch.sort(a).indices
+        print("Mask After UpConv:", x.C[a])
 
         return x

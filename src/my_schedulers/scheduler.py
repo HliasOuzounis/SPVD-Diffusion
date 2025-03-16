@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
-import tqdm
+from tqdm import tqdm
 
 class Scheduler(ABC):
     def sample(self, model, num_samples: int, num_points: int, num_features: int = 3):
@@ -15,15 +15,15 @@ class Scheduler(ABC):
         """
         shape = (num_samples, num_points, num_features)
         x_t = self.create_noise(shape, model.device)
-
-        for i, t in enumerate(tqdm(range(self.steps), desc="Sampling")):
-            x_t = self.sample_step(model, x_t, t, shape)
-
+        steps = list(reversed(range(self.steps)))
+        for t in tqdm(steps, desc="Sampling"):
+            x_t = self.sample_step(model, x_t, t, shape, model.device)
         return x_t.reshape(shape)
 
-    def sample_step(self, model, x, t, shape):
-        if t.numel() == 1:
-            t_batch = torch.full(shape[0], t, device=x.device)
+    @torch.no_grad()
+    def sample_step(self, model, x, t, shape, device):
+        if isinstance(t, int) or t.numel() == 1:
+            t_batch = torch.full((shape[0],), t, device=device)
         else:
             t_batch = t
 

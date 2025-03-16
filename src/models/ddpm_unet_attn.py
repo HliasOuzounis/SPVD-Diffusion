@@ -77,15 +77,15 @@ class DownBlock(nn.Module):
         self.saved = []
         for resnet in self.resnets: x = resnet(x, t)
         
-        # a = x.C[:, 0]
-        # a_sorted, _ = torch.sort(a)
-        # print("Sorted Mask Before DownConv:", a_sorted)
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print("Sorted Mask Before DownConv:", mask[ind])
         
         x = self.down(x)
         
-        # a = x.C[:, 0]
-        # a_sorted, _ = torch.sort(a)
-        # print("Sorted Mask After DownConv:", a_sorted)
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print("Sorted Mask After DownConv:", mask[ind])
         
         return x
     
@@ -101,16 +101,16 @@ class UpBlock(nn.Module):
     def forward(self, x, t, ups):
         for resnet in self.resnets: x = resnet(torchsparse.cat([x, ups.pop()]), t)
 
-        # a = x.C[:, 0]
-        # a_sorted, _ = torch.sort(a)
-        # print("Sorted Mask Before UpConv:", a_sorted)
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print("Mask Before UpConv:", mask[ind])
         
         x = self.up(x)
         
-        # a = x.C[:, 0]
-        # a_sorted, _ = torch.sort(a)
-        # print("Sorted Mask After UpConv:", a_sorted)
-
+        mask = x.C
+        ind = torch.argsort(mask[:, 0])
+        print("Mask After UpConv:", mask[ind])
+        
         return x
 
 

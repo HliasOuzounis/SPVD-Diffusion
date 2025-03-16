@@ -270,7 +270,6 @@ def batch_sparse_quantize_torch(
 
     if return_batch_index:
         outputs += [batch_index]
-        
     return outputs[0] if len(outputs) == 1 else outputs
 
 
