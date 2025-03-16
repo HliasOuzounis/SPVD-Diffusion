@@ -22,9 +22,9 @@ model_params = {
     "t_emb_features": 64,
 }
 
-diffusion_steps = 1000
+diffusion_steps = 1024
 starting_checkpoint = f"../checkpoints/ModelNet/distillation/{diffusion_steps}-steps.ckpt"
-retrain = False
+retrain = True
 
 def distillation_init():
     distillation_agent = DistillationProcess(lr=1e-4)
@@ -43,7 +43,7 @@ def main():
         print("Training the model from scratch.")
 
         model = Student(model_params)
-        train(model, tr, te, epochs=1)
+        train(model, tr, te, epochs=50)
         torch.save(model.state_dict(), starting_checkpoint)
     
     while N > 0:
@@ -52,7 +52,7 @@ def main():
         distillation_agent.set_student(Student(model_params))
 
         trainer = L.Trainer(
-            max_epochs=1, 
+            max_epochs=100, 
             callbacks=[],
             gradient_clip_val=10.0,
         )

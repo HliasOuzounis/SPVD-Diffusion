@@ -69,3 +69,15 @@ class DistillationProcess(L.LightningModule):
 
         # Return optimizer and scheduler (scheduler will be updated in `on_fit_start`)
         return [optimizer], [{'scheduler': self.lr_scheduler, 'interval': 'step'}]
+    
+    def on_train_start(self):
+        # Access the dataloader and calculate total steps
+        train_loader = self.trainer.train_dataloader  # Access the dataloader from the trainer
+        steps_per_epoch = len(train_loader)
+        total_steps = steps_per_epoch * self.trainer.max_epochs
+        
+        # Update the scheduler's `total_steps` dynamically
+        self.lr_scheduler.total_steps = total_steps
+
+        # Read the batch size for logging
+        self.tr_batch_size = self.trainer.train_dataloader.batch_size

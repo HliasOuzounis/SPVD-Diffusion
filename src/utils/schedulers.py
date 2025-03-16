@@ -64,7 +64,7 @@ class DDPMBase(SchedulingStrategy):
 
 class DDPM(DDPMBase):
 
-    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear', sigma='bt'):
+    def __init__(self, beta_min=0.0001, beta_max=0.02, n_steps=1024, mode='linear', sigma='bt'):
         super().__init__(beta_min, beta_max, n_steps, mode)
 
         # DDPM sigma coef
@@ -79,15 +79,29 @@ class DDPM(DDPMBase):
     def update_rule(self, x_t, noise_pred, t, i, shape, device):
 
         # create normal noise with the same shape as x_t
-        z = torch.randn(x_t.shape).to(device) if t > 0 else torch.zeros(x_t.shape).to(device) 
-                                                       # do not add noise on the last step
+        z = torch.rand(shape, device=device)
+        for i, t_i in enumerate(t):
+            if t_i == 0: # do not add noise on the last step
+                z[i] = torch.zeros(shape[1:], device=device)
+                                                               
+        # z = torch.cat([torch.rand(shape[1:], device=device) if t_i > 0 else torch.zeros(shape[1:], device=device) for t_i in t]).reshape(shape)
+        # z = torch.randn(x_t.shape).to(device) if t > 0 else torch.zeros(x_t.shape).to(device)
         
         # get parameters for the current timestep
+        t = t.cpu()
         a_t, ahat_t, s_t = self.alpha[t], self.alpha_hat[t], self.sigma[t]
-        
-        x_t = 1 / math.sqrt(a_t) * (x_t - (1 - a_t) / (math.sqrt(1 - ahat_t)) * noise_pred) + s_t * z
 
-        return x_t
+        a_t = a_t.reshape(-1, 1, 1).to(device)
+        ahat_t = ahat_t.reshape(-1, 1, 1).to(device)
+        s_t = s_t.reshape(-1, 1, 1).to(device)
+
+        start_shape = x_t.shape
+        x_t = x_t.reshape(shape)
+        noise_pred = noise_pred.reshape(shape)
+        
+        x_t = 1 / torch.sqrt(a_t) * (x_t - (1 - a_t) / (torch.sqrt(1 - ahat_t)) * noise_pred) + s_t * z
+
+        return x_t.reshape(start_shape)
 
 class DDIM(DDPMBase):
 
@@ -163,14 +177,17 @@ class SchedulerBase:
         """
         bs = shape[0]
 
-        # creating the time embedding variable
-        t_batch = torch.full((bs,), t, device=device, dtype=torch.long)
+        if t.numel() == 1:
+            # creating the time embedding variable
+            t_batch = torch.full((bs,), t, device=device, dtype=torch.long)
+        else:
+            t_batch = t
 
         # activate the model to predict the noise
         noise_pred = model((x_t, t_batch)) if emb is None else model((x_t, t_batch, emb))
         
         # calculate the new point coordinates
-        x_t = self.update_rule(x_t, noise_pred, t, i, shape, device)
+        x_t = self.update_rule(x_t, noise_pred, t_batch, i, shape, device)
         
         return x_t
 
