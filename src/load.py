@@ -16,6 +16,11 @@ device = torch.device("cuda")
 x = torch.load("x_before_down.pt").to(device)
 c = c.to(device)
 
+mask = x.C[:, 0]
+ind = torch.argsort(mask)
+print(x.C[ind])
+print(mask.min(), mask.max())
+
 y = c(x)
 
 mask = y.C[:, 0]

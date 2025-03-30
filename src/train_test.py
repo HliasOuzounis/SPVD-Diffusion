@@ -48,15 +48,15 @@ def main():
     # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
 
     m = models.SPVD_S()
-    # model = models.DiffusionBase(m, lr=lr)
+    model = models.DiffusionBase(m, lr=lr)
     # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
     
     from utils.schedulers import DDPMSparseSchedulerGPU
     from my_schedulers.ddpm_scheduler import DDPMSparseScheduler
-    # ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02)
-    ddpm_sched = DDPMSparseScheduler(steps=1024, beta_min=0.0001, beta_max=0.02)
+    ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02)
+    # ddpm_sched = DDPMSparseScheduler(steps=1024, beta_min=0.0001, beta_max=0.02)
 
-    model = model.cuda()
+    model = model.cuda().eval()
     preds = ddpm_sched.sample(model, 2, 2048)
 
     from utils.visualization import visualize_notebook

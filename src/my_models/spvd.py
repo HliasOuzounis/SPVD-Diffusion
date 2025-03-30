@@ -68,6 +68,7 @@ class SPVDownStage(nn.Module):
         t_emb_features: int,
         num_layers_list: Iterable[int] | int = 1,
         attn_heads: Iterable[int] | int | None = None,
+        is_last: bool = False,
     ):
         if isinstance(num_layers_list, int):
             num_layers_list = [num_layers_list] * (len(features_list) - 1)
@@ -86,7 +87,7 @@ class SPVDownStage(nn.Module):
                 features_in=features_list[i],
                 features_out=features_list[i + 1],
                 t_emb_features=t_emb_features,
-                add_down=(i != len(features_list) - 2),
+                add_down=(i != len(features_list) - 2) or (not is_last),
                 num_layers=num_layers_list[i],
                 attn_heads=attn_heads[i],
             )
@@ -130,9 +131,9 @@ class SPVDownStage(nn.Module):
 
         saved = []
         for down_block in self.down_blocks:
-            x = down_block(x, t, image_features)
+            x, skip_connections = down_block(x, t, image_features)
             assert not torch.isnan(x.F).any(), f"x contains NaN values, down_block {len(saved)}"
-            saved.append(x)
+            saved.extend(skip_connections)
 
         x, z = mixed_mix(x, residual)
 
@@ -152,6 +153,7 @@ class SPVUpStage(nn.Module):
         t_emb_features: int,
         num_layers_list: Iterable[int] | int = 1,
         attn_heads: Iterable[int] | int | None = None,
+        is_last: bool = False,
     ):
         if isinstance(num_layers_list, int):
             num_layers_list = [num_layers_list] * (len(features_list) - 1)
@@ -169,10 +171,10 @@ class SPVUpStage(nn.Module):
             UpBlock(
                 features_in=features_list[i],
                 features_out=features_list[i + 1],
-                prev_downsample_features=down_output_features.pop(),
+                skip_connection_features=down_output_features.pop(),
                 t_emb_features=t_emb_features,
-                add_up=(i != len(features_list) - 2),
-                num_layers=num_layers_list[i],
+                add_up=(i != len(features_list) - 2) or (not is_last),
+                num_layers=num_layers_list[i] + 1,
                 attn_heads=attn_heads[i],
             )
             for i in range(len(features_list) - 1)
@@ -215,9 +217,7 @@ class SPVUpStage(nn.Module):
         residual = self.residual(z)
 
         for up_block in self.up_blocks:
-            y = skip_connections[-1]
-            x = torchsparse.cat([x, skip_connections.pop()])
-            x = up_block(x, t, image_features)
+            x = up_block(x, t, skip_connections, image_features)
 
         x, z = mixed_mix(x, residual)
 
@@ -241,9 +241,9 @@ class SPVUnet(nn.Module):
         super().__init__()
 
         assert sum(
-            len(down_block["features_list"]) for down_block in down_blocks
+            len(down_block["features"]) for down_block in down_blocks
         ) - len(down_blocks) == sum(
-            len(up_block["features_list"]) for up_block in up_blocks
+            len(up_block["features"]) for up_block in up_blocks
         ) - len(up_blocks), "Down and Up must have the same number of stages"
 
         self.point_res = point_res
@@ -258,35 +258,38 @@ class SPVUnet(nn.Module):
         )
 
         self.stem_stage = StemStage(
-            features_in=point_channels, features_out=down_blocks[0]["features_list"][0]
+            features_in=point_channels, features_out=down_blocks[0]["features"][0]
         )
 
         self.down_stages = nn.ModuleList(
             SPVDownStage(
-                features_list=down_block["features_list"],
+                features_list=down_block["features"],
                 t_emb_features=t_emb_features,
-                num_layers_list=down_block["num_layers_list"],
+                num_layers_list=down_block["num_layers"],
                 attn_heads=down_block["attn_heads"],
+                is_last=(i == len(down_blocks) - 1),
             )
-            for down_block in down_blocks
+            for i, down_block in enumerate(down_blocks)
         )
         
         down_output_features = []
         for down_block in down_blocks:
-            down_output_features += down_block["features_list"]
+            down_output_features += down_block["features"]
+        down_output_features.pop()
 
         self.up_stages = nn.ModuleList(
             SPVUpStage(
-                features_list=up_block["features_list"],
+                features_list=up_block["features"],
                 down_output_features=down_output_features,
                 t_emb_features=t_emb_features,
-                num_layers_list=up_block["num_layers_list"],
+                num_layers_list=up_block["num_layers"],
                 attn_heads=up_block["attn_heads"],
+                is_last=(i == len(up_blocks) - 1),
             )
-            for up_block in up_blocks
+            for i, up_block in enumerate(up_blocks)
         )
 
-        self.conv_out = SharedMLP(up_blocks[-1]["features_list"][-1], point_channels)
+        self.conv_out = SharedMLP(up_blocks[-1]["features"][-1], point_channels)
 
     def forward(self, inp, image_features=None):
         """
@@ -321,21 +324,14 @@ class SPVUnet(nn.Module):
         # Initial Convolution
         x, z = self.stem_stage(x0, z)
         
-        assert not torch.isnan(x.F).any(), "x contains NaN values, stem_stage"
-        assert not torch.isnan(z.F).any(), "z contains NaN values, stem_stage"
-
         skip_connections = []
         for down_stage in self.down_stages:
             x, z, residual = down_stage(x, z, t, image_features)
             skip_connections += residual
-            
-        assert not torch.isnan(x.F).any(), "x contains NaN values, down_stage"
-        assert not torch.isnan(z.F).any(), "z contains NaN values, down_stage"
     
         for up_stage in self.up_stages:
             x, z = up_stage(x, z, t, skip_connections, image_features)
         
-        assert not torch.isnan(x.F).any(), "x contains NaN values, up_stage"
-        assert not torch.isnan(z.F).any(), "z contains NaN values, up_stage"
-        
         return self.conv_out(z).F
+    
+    

@@ -1,9 +1,12 @@
 import torch
 import torch.nn as nn
+import torchsparse
 import torchsparse.nn as spnn
 
 from .embeddings import TimeEmbeddingBlock
 from .attention import SparseAttention, SparseCrossAttention
+
+from typing import Iterable
 
 
 class SparseConv3DBlock(nn.Module):
@@ -117,19 +120,16 @@ class DownBlock(nn.Module):
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
                 features_in=features_in,
-                features_out=features_out,
+                features_out=features_in,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,
             )
             for i in range(num_layers)
         )
-
-        # Resoluition reduction when not on final down. Why?
         self.down = (
-            spnn.Conv3d(features_out, features_out, 2, stride=2)
-            # if add_down
-            # else spnn.Conv3d(features_in, features_out, 1)
-            # spnn.Conv3d(features_in, features_out, 1)
+            spnn.Conv3d(features_in, features_out, 2, stride=2)
+            if add_down
+            else spnn.Conv3d(features_in, features_out, 1)
         )
 
     def forward(self, x, t, image_features=None):
@@ -153,26 +153,14 @@ class DownBlock(nn.Module):
                 - N: Number of points.
                 - F: Number of output features (`features_out`).
         """
+        skip_connections = [x]
         for res_block in self.res_blocks:
             x = res_block(x, t, image_features)
-            
-        a = x.C[:, 0]
-        a = torch.sort(a).indices
-        print("Mask Before DownConv:", x.C[a])
-        # Save x before downsampling
-        # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_before_down.pt')
+            skip_connections.append(x)
         
         x = self.down(x)
         
-        a = x.C[:, 0]
-        a = torch.sort(a).indices
-        print("Mask After DownConv:", x.C[a])
-        
-        # torch.save(x, '/home/ubuntu/SPVD_Lightning/src/x_after_down.pt')
-
-        x.C[:, 0] = torch.where(x.C[:, 0] > 1, torch.tensor(1, device=x.C.device), x.C[:, 0])
-        
-        return x
+        return x, skip_connections
 
 
 class UpBlock(nn.Module):
@@ -180,7 +168,7 @@ class UpBlock(nn.Module):
         self,
         features_in: int,
         features_out: int,
-        prev_downsample_features: int,
+        skip_connection_features: Iterable[int],
         t_emb_features: int,
         add_up: bool = True,
         num_layers: int = 1,
@@ -189,17 +177,20 @@ class UpBlock(nn.Module):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
-                features_in=features_in + prev_downsample_features if i == 0 else features_out,
-                features_out=features_out,
+                features_in=features_in + skip_connection_features,
+                features_out=features_in,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,
             )
             for i in range(num_layers)
         )
-        self.up_sample = spnn.Conv3d(features_out, features_out, 2, stride=2, transposed=True)
-        # self.up_sample = spnn.Conv3d(features_out, features_out, 1)
+        self.up_sample = (
+            spnn.Conv3d(features_in, features_out, 2, stride=2, transposed=True)
+            if add_up
+            else spnn.Conv3d(features_in, features_out, 1, transposed=True)
+        )
     
-    def forward(self, x, t, image_features=None):
+    def forward(self, x, t, skip_connections, image_features=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F). Concatenated with the skip connection from the downsample path.
@@ -221,16 +212,9 @@ class UpBlock(nn.Module):
                 - F: Number of output features (`features_out`).
         """
         for res_block in self.res_blocks:
+            x = torchsparse.cat([x, skip_connections.pop()])
             x = res_block(x, t, image_features)
         
-        a = x.C[:, 0]
-        a = torch.sort(a).indices
-        print("Mask Before UpConv:", x.C[a])
-        
         x = self.up_sample(x)
-        
-        a = x.C[:, 0]
-        a = torch.sort(a).indices
-        print("Mask After UpConv:", x.C[a])
 
         return x

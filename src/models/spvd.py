@@ -116,13 +116,13 @@ class DownBlock(nn.Module):
 
         mask = x.C
         ind = torch.argsort(mask[:, 0])
-        print(f'Mask Before DownConv: {mask[ind]}')
+        # print(f'Mask Before DownConv: {mask[ind]}')
         
         x = self.down(x)
 
         mask = x.C
         ind = torch.argsort(mask[:, 0])
-        print(f'Mask After DownConv: {mask[ind]}')
+        # print(f'Mask After DownConv: {mask[ind]}')
         
         return x
 
@@ -194,13 +194,13 @@ class UpBlock(nn.Module):
         
         mask = x.C
         ind = torch.argsort(mask[:, 0])
-        print(f'Mask Before UpConv: {mask[ind]}')
+        # print(f'Mask Before UpConv: {mask[ind]}')
         
         x = self.up(x)
 
         mask = x.C
         ind = torch.argsort(mask[:, 0])
-        print(f'Mask After UpConv: {mask[ind]}')
+        # print(f'Mask After UpConv: {mask[ind]}')
         
         return x
 
@@ -405,7 +405,6 @@ class SPVUnet(nn.Module):
 
 
     def forward(self, inp):
-
         # Input Processing
         x, t = inp
         z = PointTensor(x.F, x.C.float()) # CHECK
@@ -427,6 +426,8 @@ class SPVUnet(nn.Module):
         #x = self.mid_stages(x, emb)
 
         for u in self.up_stages:
+            print(len(saved))
             x, z = u(x, z, emb, saved)
+        print(len(saved))
         
         return self.out_conv(z.F)

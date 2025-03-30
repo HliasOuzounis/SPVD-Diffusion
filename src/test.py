@@ -1,21 +1,44 @@
-from my_models.modules.sparse_utils import mixed_mix, PointTensor
+from datasets.modelnet40.modelnet40_loader import get_dataloaders, ModelNet40
+from my_models.spvd import SPVUnet
+import models
 
 import torch
+torch.cuda.empty_cache()
+torch.set_float32_matmul_precision('medium')
 
 def main():
-    from torchsparse import SparseTensor
+    path = "../data/ModelNet40"
+    categories = ['bottle']
+    tr, te = get_dataloaders(path, categories=categories)
+    
 
-    a = SparseTensor(
-        feats=torch.randn(10, 16),
-        coords=torch.randint(0, 100, (10, 3)),
+    import lightning as L
+    from lightning.pytorch.callbacks import ModelCheckpoint
+    checkpoint_callback = ModelCheckpoint(
+        dirpath='../checkpoints/ModelNet/testing',
+        filename='{epoch}-{val_loss:.2f}',
+        save_last=True  # Save the last checkpoint
     )
-    print(a, a.F)
-    
-    b = torch.randn(10, 16)
-    b = b.to_sparse()
-    print(b)
-    
+    trainer = L.Trainer(
+        max_epochs=40,
+        gradient_clip_val=10.0,
+        callbacks=[checkpoint_callback]
+    )
 
-if __name__ == '__main__':
+    m = models.SPVD_S()
+    model = models.DiffusionBase(m, lr=lr)
+    # trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=te)
+    
+    from utils.schedulers import DDPMSparseSchedulerGPU
+    from my_schedulers.ddpm_scheduler import DDPMSparseScheduler
+    ddpm_sched = DDPMSparseSchedulerGPU(n_steps=1000, beta_min=0.0001, beta_max=0.02)
+    # ddpm_sched = DDPMSparseScheduler(steps=1024, beta_min=0.0001, beta_max=0.02)
+
+    model = model.cuda().eval()
+    preds = ddpm_sched.sample(model, 2, 2048)
+
+    from utils.visualization import visualize_notebook
+    visualize_notebook(preds, x_offset=2.5, y_offset=2.5, point_size=0.025)
+
+if __name__ == "__main__":
     main()
-
