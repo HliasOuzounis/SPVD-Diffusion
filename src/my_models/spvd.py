@@ -333,5 +333,3 @@ class SPVUnet(nn.Module):
             x, z = up_stage(x, z, t, skip_connections, image_features)
         
         return self.conv_out(z).F
-    
-    

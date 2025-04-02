@@ -33,11 +33,11 @@ class ModelNet40(Dataset):
     
     def load_data(self, path: str) -> None:
         pc_path = os.path.join(path, "pointclouds")
-        renders_path = os.path.join(path, "renders")
+        renders_path = os.path.join(path, "processed_renders")
         
         self.pointclouds = []
-        self.renders = []
-        # self.render_features = []
+        self.render_features = []
+        self.filenames = []
         
         for category in os.listdir(pc_path):
             if self.categories and category not in self.categories:
@@ -50,15 +50,10 @@ class ModelNet40(Dataset):
                 self.pointclouds.append(pointcloud)
 
                 file, _ = os.path.splitext(file)
+                self.filenames.append(file)
     
-                # model_views = []
-                # for view in os.listdir(os.path.join(renders_path, category, self.split, file)):
-                #     image = Image.open(os.path.join(renders_path, category, self.split, file, view)).convert("RGB")
-                #     preprocessed = self.visual_transformer.preprocess(image)['pixel_values'][0]
-                #     model_views.append(preprocessed)
-                # model_views = torch.stack(model_views)
-                # self.renders.append(model_views)
-                # self.render_features.append(self.visual_transformer(model_views))
+                render_features = torch.load(os.path.join(renders_path, category, self.split, f"{file}.pt"), weights_only=True)
+                self.render_features.append(render_features)
             
     
     def __len__(self) -> int:
@@ -71,10 +66,10 @@ class ModelNet40(Dataset):
         idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
         pc = pc[idxs, :]
 
-        # renders = self.render_features[idx]
-        # selected_render_idx = np.random.randint(0, renders.shape[0])
-        # selected_render = self.renders[idx][selected_render_idx].cpu().numpy()
-        # render_features = renders[selected_render_idx]
+        render_features = self.render_features[idx]
+        selected_file = self.filenames[idx]
+        selected_view = np.random.randint(0, render_features.shape[0])
+        render_features = render_features[selected_view]
         
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)
@@ -85,8 +80,9 @@ class ModelNet40(Dataset):
         return {
             "idx": idx,
             "pc": pc,
-            # "render": selected_render,
-            # "render_features": render_features,
+            "render-features": render_features,
+            "selected-view": selected_view,
+            "filename": selected_file,
         }
     
 class ModelNet40Sparse(ModelNet40):
@@ -108,7 +104,9 @@ class ModelNet40Sparse(ModelNet40):
         
         pc = data["pc"]
         # render = data["render"]
-        # render_features = data["render_features"]
+        render_features = data["render-features"]
+        selected_view = data["selected-view"]
+        filename = data["filename"]
         
         pc, t, noise = self.noise_scheduler(pc)
         
@@ -130,8 +128,9 @@ class ModelNet40Sparse(ModelNet40):
             "input": noisy_pc,
             "t": t,
             "noise": noise,
-            # "render": render,
-            # "render-features": render_features
+            "render-features": render_features,
+            "selected-view": selected_view,
+            "filename": filename,
         }
         
 def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:

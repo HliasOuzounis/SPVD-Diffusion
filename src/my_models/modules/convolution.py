@@ -64,7 +64,9 @@ class SparseResidualBlock(nn.Module):
         self.has_attn = attn_heads is not None
         if self.has_attn:
             self.attn = SparseAttention(features_out, attn_heads)
-            # self.cross_attn = SparseCrossAttention(...)
+            # VIT has converted the renders to 197x768 feature tokens
+            image_features = 768
+            self.cross_attn = SparseCrossAttention(features_out, image_features, attn_heads)
 
     def forward(self, x_in, t, image_features=None):
         """

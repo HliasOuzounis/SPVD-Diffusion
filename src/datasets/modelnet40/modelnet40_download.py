@@ -4,10 +4,32 @@ from tqdm import tqdm
 import zipfile
 
 import numpy as np
+import torch
+
+from transformers import ViTImageProcessor, ViTModel
+from PIL import Image
+
+
+class VisualTransformer:
+    model_name = "google/vit-base-patch16-224-in21k"  # Example model
+    def __init__(self):
+        self.processor = ViTImageProcessor.from_pretrained(self.model_name)
+        self.model = ViTModel.from_pretrained(self.model_name)
+        self.model.eval()
+        self.model.to("cuda")
+
+    def preprocess(self, image):
+        inputs = self.processor(images=image, return_tensors="pt")
+        return inputs.to("cuda")
+
+    def __call__(self, x):
+        with torch.no_grad():
+            outputs = self.model(x)
+        return outputs.last_hidden_state.cpu()
 
 
 class ModelNet40Downloader:
-    def __init__(self, path: str |None = None, split: str = "train") -> None:
+    def __init__(self, path: str | None = None, split: str = "train") -> None:
         assert split in ["train", "test"], "split should be either 'train' or 'test'"
         self.split = split
         
@@ -82,10 +104,35 @@ class ModelNet40Downloader:
                     pointcloud /= np.max(np.linalg.norm(pointcloud, axis=1))
                     
                     np.save(filename, pointcloud)
+    
+    def parse_renders(self, path: str) -> None:
+        vit = VisualTransformer()
+        renders_path = os.path.join("./data/ModelNet40/", "renders")
+
+        for i, category in enumerate(os.listdir(self.path)):            
+            for file in tqdm(os.listdir(os.path.join(renders_path, category, self.split)), desc=f"Loading renders for {category}"):
+                model_views = []
+                for view in os.listdir(os.path.join(renders_path, category, self.split, file)):
+                    try:
+                        image = Image.open(os.path.join(renders_path, category, self.split, file, view)).convert("RGB")
+                        preprocessed = vit.preprocess(image)['pixel_values'][0]
+                        model_views.append(preprocessed)
+                    except:
+                        print(f"Error loading {category}/{self.split}/{file}/{view}")
+                        exit()
+
+                model_views = torch.stack(model_views)
+                model_views = vit(model_views)
+
+                os.makedirs(os.path.join(path, category, self.split), exist_ok=True)
+                
+                save_path = os.path.join(path, f"{category}/{self.split}/{file}.pt")
+                torch.save(model_views, save_path)
 
 
 if __name__ == "__main__":
-    for split in ["train", "test"]:
+    for split in ["test",]:
         dtst = ModelNet40Downloader(split=split)
-        dtst.save_to_stl(path="./data/ModelNet40/stl_models")
-        dtst.save_to_pointcloud(path="./data/ModelNet40/pointclouds", num_points=15_000)
+        # dtst.save_to_stl(path="./data/ModelNet40/stl_models")
+        # dtst.save_to_pointcloud(path="./data/ModelNet40/pointclouds", num_points=15_000)
+        dtst.parse_renders(path="./data/ModelNet40/processed_renders")

@@ -426,8 +426,6 @@ class SPVUnet(nn.Module):
         #x = self.mid_stages(x, emb)
 
         for u in self.up_stages:
-            print(len(saved))
             x, z = u(x, z, emb, saved)
-        print(len(saved))
         
         return self.out_conv(z.F)

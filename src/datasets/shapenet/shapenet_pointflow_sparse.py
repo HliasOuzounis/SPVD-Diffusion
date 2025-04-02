@@ -14,7 +14,7 @@ class ShapeNet15kPointCloudsSparseNoisy(ShapeNet15kPointClouds):
     def set_voxel_size(self, voxel_size=1e-8):
         self.voxel_size = voxel_size
         
-    def set_noise_params(self, beta_min=0.0001, beta_max=0.02, n_steps=1000, mode='linear'):
+    def set_noise_params(self, beta_min=0.0001, beta_max=0.02, n_steps=1024, mode='linear'):
         self.noise_scheduler = NoiseSchedulerDDPM(beta_min, beta_max, n_steps, mode)
         
     def __getitem__(self, idx):
@@ -45,10 +45,10 @@ class ShapeNet15kPointCloudsSparseNoisy(ShapeNet15kPointClouds):
         noise = SparseTensor(coords=coords, feats=noise)
         t = torch.tensor(t)
         
-        return {'input':noisy_pts, 't':t, 'noise':noise}
+        return {'input':noisy_pts, 't':t, 'noise':noise, "render-features": None}
     
 
-def get_datasets(path, categories, beta_min=0.0001, beta_max=0.02, n_steps=1000, init_res=1e-8):
+def get_datasets(path, categories, beta_min=0.0001, beta_max=0.02, n_steps=1024, init_res=1e-8):
 
     tr_dataset = ShapeNet15kPointCloudsSparseNoisy(
                 categories=categories, split='train',
@@ -73,14 +73,14 @@ def get_datasets(path, categories, beta_min=0.0001, beta_max=0.02, n_steps=1000,
                 all_points_std=tr_dataset.all_points_std)
 
     tr_dataset.set_voxel_size(init_res)
-    tr_dataset.set_noise_params(beta_min=0.0001, beta_max=0.02, n_steps=1000)
+    tr_dataset.set_noise_params(beta_min=0.0001, beta_max=0.02, n_steps=n_steps)
 
     te_dataset.set_voxel_size(init_res)
-    te_dataset.set_noise_params(beta_min=0.0001, beta_max=0.02, n_steps=1000)
+    te_dataset.set_noise_params(beta_min=0.0001, beta_max=0.02, n_steps=n_steps)
 
     return tr_dataset, te_dataset
 
-def get_dataloaders(path, categories, beta_min=0.0001, beta_max=0.02, n_steps=1000, init_res=1e-5, batch_size=32, num_workers=8):
+def get_dataloaders(path, categories, beta_min=0.0001, beta_max=0.02, n_steps=1024, init_res=1e-5, batch_size=32, num_workers=8):
 
     tr_dataset, te_dataset = get_datasets(path, categories, beta_min, beta_max, n_steps, init_res)
 

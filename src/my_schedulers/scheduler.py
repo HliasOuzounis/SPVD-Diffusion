@@ -16,8 +16,12 @@ class Scheduler(ABC):
         shape = (num_samples, num_points, num_features)
         x_t = self.create_noise(shape, model.device)
         steps = list(reversed(range(self.steps)))
+        
         for t in tqdm(steps, desc="Sampling"):
             x_t = self.sample_step(model, x_t, t, shape, model.device)
+        
+        x_t = self.post_process(x_t)
+        
         return x_t.reshape(shape)
 
     @torch.no_grad()
@@ -30,6 +34,11 @@ class Scheduler(ABC):
         noise_prediction = model((x, t_batch))
 
         return self.update(x, t_batch, noise_prediction, shape)
+
+    def post_process(self, x):
+        # Post-process the generated samples
+        # This can include clamping, normalization, etc.
+        return x
         
     @abstractmethod
     def update(self, x, t, noise):

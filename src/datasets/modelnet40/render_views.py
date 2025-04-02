@@ -6,7 +6,7 @@ import bpy # type: ignore
 from mathutils import Vector # type: ignore
 
 # install blender with sudo snap install blender --classic
-# run with blender -b -P datasets/render_views.py > /dev/null
+# run with blender -b -P src/datasets/modelnet40/render_views.py > /dev/null
 
 def import_object(obj_path):
     clear_scene()
@@ -146,6 +146,11 @@ def main():
     save_to = "./data/ModelNet40/renders"
 
     scene, camera, render = prepare_scene()
+
+    # To render a single model
+    file = models_dir + "/sofa/train/sofa_0157" + ".stl"
+    render_object(camera, render, file, save_to)
+    return
     
     for root, directory, files in os.walk(models_dir):
         category = root.split('/')[-2]
