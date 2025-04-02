@@ -118,6 +118,8 @@ class Uniform15KPC(Dataset):
               % (self.tr_sample_size, self.te_sample_size))
         assert self.scale == 1, "Scale (!= 1) is deprecated"
 
+        print(np.min(self.all_points), np.max(self.all_points))
+
     def get_pc_stats(self, idx):
         if self.normalize_per_shape:
             m = self.all_points_mean[idx].reshape(1, self.input_dim)

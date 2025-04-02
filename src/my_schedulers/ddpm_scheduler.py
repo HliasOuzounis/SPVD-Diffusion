@@ -88,7 +88,7 @@ class DDPMSparseScheduler(DDPMScheduler):
         return SparseTensor(coords=coords, feats=feats).to(coords.device)
 
     def create_noise(self, shape, device):
-        x = torch.randn(shape).clamp(-3, 3) # Clamping to avoid outliers
+        x = torch.randn(shape).clamp(-5, 5) # Clamping to avoid outliers
         return self.torch2sparse(x, shape).to(device)
 
     def update(self, x, t, noise, shape, stochastic=True):

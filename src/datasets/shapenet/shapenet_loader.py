@@ -15,52 +15,55 @@ from tqdm import tqdm
 from ..utils import VisualTransformer
 from my_schedulers.ddpm_scheduler import DDPMScheduler
 
-class ModelNet40(Dataset):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
-        assert split in ["train", "test"], "split should be either 'train' or 'test'"
+from .shapenet_utils import synsetid_to_category, category_to_synsetid
+
+
+class ShapeNet(Dataset):
+    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
+        assert split in ["train", "test", "val"], "split should be either 'train' or 'test' or 'val'"
         self.split = split
 
         self.visual_transformer = VisualTransformer()
         
-        self.path = path if path is not None else "./data/ModelNet40"
+        self.path = path if path is not None else "./data/ShapeNetCore"
         self.sample_size = sample_size
 
-        self.categories = categories if categories is not None else []
+        self.categories = [category_to_synsetid[cat] for cat in categories] if categories is not None else []
         
         self.load_data(self.path)
-
     
     def load_data(self, path: str) -> None:
         pc_path = os.path.join(path, "pointclouds")
         renders_path = os.path.join(path, "processed_renders")
-        
+
         self.pointclouds = []
         self.render_features = []
+        
         self.filenames = []
         
         for category in os.listdir(pc_path):
             if self.categories and category not in self.categories:
                 continue
             
-            for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=f"Loading renders for {category}"):
+            desc = f"Loading pointclouds for {synsetid_to_category[category]} ({category})"
+            for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
                 model = os.path.join(pc_path, category, self.split, file)
                 pointcloud = np.load(model)
                 
                 self.pointclouds.append(pointcloud)
 
                 file, _ = os.path.splitext(file)
-                self.filenames.append(file)
+                self.filenames.append(os.path.join(category, file))
     
                 # render_features = torch.load(os.path.join(renders_path, category, self.split, f"{file}.pt"), weights_only=True)
                 # self.render_features.append(render_features)
-
+        
         self.pointclouds = np.array(self.pointclouds)
         # Normalize and standardize the pointclouds
         mean = np.mean(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
         std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
 
         self.pointclouds = (self.pointclouds - mean) / std
-            
     
     def __len__(self) -> int:
         return len(self.pointclouds)
@@ -92,8 +95,9 @@ class ModelNet40(Dataset):
             "selected-view": None,
             "filename": selected_file,
         }
-    
-class ModelNet40Sparse(ModelNet40):
+
+
+class ShapeNetSparse(ShapeNet):
     def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
         super().__init__(path, split, sample_size, categories)
         
@@ -142,22 +146,16 @@ class ModelNet40Sparse(ModelNet40):
         
 def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:
     sample_size = 2048
-    train_dataset = ModelNet40Sparse(path, "train", sample_size, categories)
-    test_dataset = ModelNet40Sparse(path, "test", sample_size, categories)
+    train_dataset = ShapeNetSparse(path, "train", sample_size, categories)
+    test_dataset = ShapeNetSparse(path, "test", sample_size, categories)
+    val_dataset = ShapeNetSparse(path, "val", sample_size, categories)
     
     train_dataset.set_voxel_size(1e-5)
     test_dataset.set_voxel_size(1e-5)
+    val_dataset.set_voxel_size(1e-5)
     
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, collate_fn=sparse_collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=sparse_collate_fn)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=sparse_collate_fn)
     
-    return train_loader, test_loader
-        
-
-def main():
-    tr, te = get_dataloaders("./data/ModelNet40")
-    
-    print(next(iter(tr)))
-
-if __name__ == "__main__":
-    main()
+    return train_loader, test_loader, val_loader

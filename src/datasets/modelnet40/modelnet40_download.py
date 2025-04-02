@@ -131,7 +131,7 @@ class ModelNet40Downloader:
 
 
 if __name__ == "__main__":
-    for split in ["test",]:
+    for split in ["test", "train"]:
         dtst = ModelNet40Downloader(split=split)
         # dtst.save_to_stl(path="./data/ModelNet40/stl_models")
         # dtst.save_to_pointcloud(path="./data/ModelNet40/pointclouds", num_points=15_000)
