@@ -47,7 +47,7 @@ class DiffusionBase(L.LightningModule):
         inp, target, render_features = self.task.prep_data(batch)
         x, t = inp
 
-        if torch.rand(1) < 0.3: # Random unconditional training
+        if torch.rand(1) < 0.1: # Random unconditional training
             render_features = None
 
         # activate the network for noise prediction

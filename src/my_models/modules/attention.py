@@ -27,6 +27,8 @@ class Attention(nn.Module):
         if mask is not None:
             mask = ~mask
 
+        print(f"Query shape: {query.shape}")
+        print(f"Key shape: {key_value.shape}")
         attn_output, _ = self.attn(
             query=query,
             key=key_value,
@@ -58,18 +60,19 @@ class SparseCrossAttention(Attention):
     def __init__(self, dim, image_dim, num_heads=8, dropout=0):
         super().__init__(dim, num_heads, dropout)
 
-        self.mlp = nn.Sequential(
+        self.cond_mlp = nn.Sequential(
             nn.Linear(image_dim, dim),
             nn.GELU(),
             nn.Linear(dim, dim)
         )
+        
         self.norm = nn.LayerNorm(dim)
     
     def forward(self, x, y):
         x_dense, x_mask = sparse_to_dense(x.F, x.C[:, 0].long())
         x_dense = self.norm(x_dense)
 
-        y = self.mlp(y)
+        y = self.cond_mlp(y)
 
         x_dense = super().forward(x_dense, y)
 

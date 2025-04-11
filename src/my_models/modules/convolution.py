@@ -15,7 +15,7 @@ class SparseConv3DBlock(nn.Module):
         self.layers = nn.Sequential(
             spnn.BatchNorm(features_in),
             spnn.SiLU(),
-            spnn.Conv3d(features_in, features_out, kernel_size),
+            spnn.Conv3d(features_in, features_out, kernel_size, bias=True),
         )
 
     def forward(self, x):
@@ -48,12 +48,15 @@ class SparseResidualBlock(nn.Module):
         t_emb_features: int,
         kernel_size: int = 3,
         attn_heads: int | None = None,
+        cross_attn_heads: int | None = None,
+        cross_attn_cond_dim: int | None = None,
     ):
         super().__init__()
         self.f_in = features_in
         self.conv1 = SparseConv3DBlock(features_in, features_out, kernel_size)
-        self.t_embedding = TimeEmbeddingBlock(t_emb_features, features_out)
         self.conv2 = SparseConv3DBlock(features_out, features_out, kernel_size)
+
+        self.t_embedding = TimeEmbeddingBlock(t_emb_features, features_out)
 
         self.res_connection = (
             nn.Identity()
@@ -64,9 +67,12 @@ class SparseResidualBlock(nn.Module):
         self.has_attn = attn_heads is not None
         if self.has_attn:
             self.attn = SparseAttention(features_out, attn_heads)
-            # VIT has converted the renders to 197x768 feature tokens
-            reference_features = 768
-            self.cross_attn = SparseCrossAttention(features_out, reference_features, attn_heads)
+
+        self.has_cross_attn = cross_attn_heads is not None
+        if self.has_cross_attn:
+            self.cross_attn = SparseCrossAttention(
+                features_out, cross_attn_cond_dim, cross_attn_heads
+            )
 
     def forward(self, x_in, t, reference=None):
         """
@@ -97,8 +103,9 @@ class SparseResidualBlock(nn.Module):
 
         if self.has_attn:
             x = self.attn(x)
-            if reference is not None:
-                x = self.cross_attn(x, reference)
+
+        if reference is not None and self.has_cross_attn:
+            x = self.cross_attn(x, reference)
 
         return x
 
@@ -117,21 +124,25 @@ class DownBlock(nn.Module):
         add_down: bool = True,
         num_layers: int = 1,
         attn_heads: int | None = None,
+        cross_attn_heads: int | None = None,
+        cross_attn_cond_dim: int | None = None,
     ):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
                 features_in=features_in,
-                features_out=features_in,
+                features_out=features_out,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,
+                cross_attn_heads=cross_attn_heads,
+                cross_attn_cond_dim=cross_attn_cond_dim,
             )
             for i in range(num_layers)
         )
         self.down = (
-            spnn.Conv3d(features_in, features_out, 2, stride=2)
+            spnn.Conv3d(features_out, features_out, 2, stride=2)
             if add_down
-            else spnn.Conv3d(features_in, features_out, 1)
+            else nn.Identity()
         )
 
     def forward(self, x, t, reference=None):
@@ -170,26 +181,30 @@ class UpBlock(nn.Module):
         self,
         features_in: int,
         features_out: int,
-        skip_connection_features: Iterable[int],
+        skip_connection_features: list[int],
         t_emb_features: int,
         add_up: bool = True,
         num_layers: int = 1,
         attn_heads: int | None = None,
+        cross_attn_heads: int | None = None,
+        cross_attn_cond_dim: int | None = None,
     ):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
-                features_in=features_in + skip_connection_features,
-                features_out=features_in,
+                features_in=(features_in if i == 0 else features_out) + skip_connection_features.pop(),
+                features_out=features_out,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,
+                cross_attn_heads=cross_attn_heads,
+                cross_attn_cond_dim=cross_attn_cond_dim,
             )
             for i in range(num_layers)
         )
         self.up_sample = (
-            spnn.Conv3d(features_in, features_out, 2, stride=2, transposed=True)
+            spnn.Conv3d(features_out, features_out, 2, stride=2, transposed=True)
             if add_up
-            else spnn.Conv3d(features_in, features_out, 1, transposed=True)
+            else nn.Identity()
         )
     
     def forward(self, x, t, skip_connections, reference=None):
