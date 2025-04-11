@@ -10,7 +10,7 @@ from typing import Iterable
 
 
 class SparseConv3DBlock(nn.Module):
-    def __init__(self, features_in: int, features_out: int, kernel_size: int = 3):
+    def __init__(self, features_in: int, features_out: int, kernel_size: int = 2):
         super().__init__()
         self.layers = nn.Sequential(
             spnn.BatchNorm(features_in),
@@ -130,7 +130,7 @@ class DownBlock(nn.Module):
         super().__init__()
         self.res_blocks = nn.ModuleList(
             SparseResidualBlock(
-                features_in=features_in,
+                features_in=features_in if i == 0 else features_out,
                 features_out=features_out,
                 t_emb_features=t_emb_features,
                 attn_heads=attn_heads,

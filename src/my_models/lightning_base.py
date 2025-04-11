@@ -39,8 +39,9 @@ class DiffusionBase(L.LightningModule):
     def set_noise_scheduler(self, noise_scheduler):
         self.noise_scheduler = noise_scheduler
         
-    def forward(self, x, render_features=None):
-        return self.model(x, render_features)
+    def forward(self, inp):
+        x, t, render_features = inp
+        return self.model((x, t), render_features)
     
     def training_step(self, batch, batch_idx):
         # get data from the batch
@@ -51,7 +52,7 @@ class DiffusionBase(L.LightningModule):
             render_features = None
 
         # activate the network for noise prediction
-        preds = self(inp, render_features)
+        preds = self((x, t, render_features))
 
         # calculate the loss
         snr = self.noise_scheduler.snr_weight(t).to(preds.device)
@@ -65,7 +66,7 @@ class DiffusionBase(L.LightningModule):
         inp, target, render_features = self.task.prep_data(batch)
         x, t = inp
 
-        preds = self(inp, render_features)
+        preds = self((x, t, render_features))
 
         snr = self.noise_scheduler.snr_weight(t).to(preds.device)
         loss = self.task.loss_fn(preds, target, snr)

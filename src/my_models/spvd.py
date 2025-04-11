@@ -47,14 +47,14 @@ class SPVUnet(nn.Module):
             nn.Linear(emb_features, emb_features),
         )
         
-        self.downs_blocks = nn.ModuleList()
+        self.down_blocks = nn.ModuleList()
         
         prev_features = features[0]
         skip_connection_features = []
         for i, (features_out, attn_heads, cross_attn_heads) in enumerate(
             zip(features[1:], attn_heads_list, cross_attn_heads_list), start=1
         ):
-            self.downs_blocks.append(
+            self.down_blocks.append(
                 DownBlock(
                     features_in=prev_features,
                     features_out=features_out,
@@ -78,11 +78,11 @@ class SPVUnet(nn.Module):
             ),
         ])
         
-        self.ups_blocks = nn.ModuleList()
+        self.up_blocks = nn.ModuleList()
         for i, (features_out, attn_heads, cross_attn_heads) in enumerate(
             zip(reversed(features[1:]), reversed(attn_heads_list), reversed(cross_attn_heads_list)), start=1
         ):
-            self.ups_blocks.append(
+            self.up_blocks.append(
                 UpBlock(
                     features_in=prev_features,
                     features_out=features_out,
@@ -137,27 +137,26 @@ class SPVUnet(nn.Module):
         t = timestep_embedding(t, self.t_emb_features)
         t_emb = self.t_emb_mlp(t)
 
-        x = initial_voxelize(z, self.voxel_size, self.pres)
+        x = initial_voxelize(z, self.pres, self.voxel_size)
 
         x = self.in_conv(x)
 
         skip_connections = []
-
-        for down_block in self.downs_blocks:
+        for down_block in self.down_blocks:
             x, skip = down_block(x, t_emb, reference)
             skip_connections.extend(skip)
             
         for mid_block in self.mid_block:
             x = mid_block(x, t_emb)
         
-        for up_block in self.downs_blocks:
-            x = up_block(x, t_emb, skip_connection, reference)
+        for up_block in self.up_blocks:
+            x = up_block(x, t_emb, skip_connections, reference)
 
-        assert len(skip_connetions) == 0, "Skip connections are not empty, something is wrong"
+        assert len(skip_connections) == 0, "Skip connections are not empty, something is wrong"
 
-        z = voxel_to_point(x, z)
+        z1 = voxel_to_point(x, z)
+        
+        z1.F += self.point_branch(z).F
 
-        z.F += self.point_branch(z.F)
-
-        return self.out_conv(z.F)
+        return self.out_conv(z1.F)
 
