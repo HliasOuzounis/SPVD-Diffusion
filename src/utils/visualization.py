@@ -1,44 +1,65 @@
 import k3d
+import numpy as np
+
+def display_pointclouds_grid(pointclouds, offset=8.0, point_size=0.2, grid_dims=None):
+    """
+    Display multiple point clouds in a grid layout using k3d.
     
-def visualize_notebook(batch, grid=(8, 4), x_offset=2.5, y_offset=2.5, point_size=0.2):
-    batch = batch.detach().cpu().clone()
+    Args:
+        *pointclouds: Variable number of point clouds (each as numpy array of shape [N,3])
+        offset: Distance between point clouds (default: 1.0)
+        point_size: Size of points in visualization (default: 0.1)
+        grid_dims: Optional (rows, cols) for grid layout. Auto-calculated if None.
+    """
+    if len(pointclouds) == 0:
+        raise ValueError("At least one point cloud must be provided")
     
-    assert len(grid) == 2
-            
-    x_offset_start = - x_offset * grid[0] // 2
-    x_offset_start = x_offset_start + x_offset / 2 if grid[0] % 2 == 0 else x_offset_start
+    # Calculate grid dimensions if not provided
+    if grid_dims is None:
+        grid_cols = int(np.ceil(np.sqrt(len(pointclouds))))
+        grid_rows = int(np.ceil(len(pointclouds) / grid_cols))
+    else:
+        grid_rows, grid_cols = grid_dims
+
     
-    y_offset_start = - y_offset * grid[1] // 2
-    y_offset_start = y_offset_start + y_offset / 2 if grid[1] % 2 == 0 else y_offset_start
-    
-    
-    plot = k3d.plot(camera_auto_fit=False)
-    # pos, target, up, fov
-    plot.camera = [0, 0, 12, 0, 0, 0, 0, 1, 0]
-    plot.grid_visible = False
-    
-    k = 0
-    for i in range(grid[0]):
-        for j in range(grid[1]):
-            
-            # get point cloud to cpu
-            pc = batch[k]
-            
-            # translate the point cloud properly
-            pc[:, 0] += x_offset_start + i * x_offset
-            pc[:, 1] += y_offset_start + j * y_offset
-            
-            # turn in into a k3d point cloud
-            
-            plot += k3d.points(pc, point_size=point_size)
-            
-            k += 1
-            if k > batch.shape[0] - 1:
-                break
-        else:
-            continue
-        break
+    # Create plot
+    plot = k3d.plot()
+
+    stacked_points = []
+    for idx, points in enumerate(pointclouds):
+        if points.shape[1] != 3:
+            raise ValueError(f"Point cloud {idx} must be shape [N,3], got {points.shape}")
         
+        # Calculate grid position
+        row = idx // grid_cols
+        col = idx % grid_cols
+        
+        # Apply offset
+        offset_vec = np.array([-col * offset, 0, row * offset])
+        offset_points = points + offset_vec
+        
+        # Create k3d object
+        point_cloud = k3d.points(
+            positions=offset_points.astype(np.float32),
+            # color=color,
+            point_size=point_size
+        )
+        plot += point_cloud
+
+        stacked_points.append(offset_points)
+    
+    camera_target = np.mean(np.vstack(stacked_points), axis=0)
+    camera_pos = camera_target - np.array([-3 * offset, -2 * offset, +3 * offset])
+    
+    # Adjust camera to see all point clouds
+    plot.grid_visible = False
+    plot.camera_auto_fit=False
+    plot.camera = np.hstack([
+            camera_pos,    # Camera position [x,y,z]
+            camera_target,     # Target position [x,y,z]
+            [0, 1, 0]         # Up vector
+        ]).tolist()
+    
     plot.display()
 
 

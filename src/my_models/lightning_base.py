@@ -18,8 +18,14 @@ class SparseGeneration(Task):
         render_features = batch['render-features']
         inp = (noisy_data, t)
         return inp, noise.F, render_features
-    def loss_fn(self, preds, target):
-        return F.mse_loss(preds, target)
+    
+    def loss_fn(self, preds, target, snr):
+        # return F.mse_loss(preds, target)
+        snr = snr.view(-1, 1, 1)
+        batch = snr.shape[0]
+        preds = preds.view(batch, -1, 3)
+        target = target.view(batch, -1, 3)
+        return (snr * (preds - target).pow(2)).mean()
 
 class DiffusionBase(L.LightningModule):
 
@@ -30,18 +36,26 @@ class DiffusionBase(L.LightningModule):
         self.task = task
         self.learning_rate = lr
         
+    def set_noise_scheduler(self, noise_scheduler):
+        self.noise_scheduler = noise_scheduler
+        
     def forward(self, x, render_features=None):
-        return self.model(x)
+        return self.model(x, render_features)
     
     def training_step(self, batch, batch_idx):
         # get data from the batch
         inp, target, render_features = self.task.prep_data(batch)
+        x, t = inp
+
+        if torch.rand(1) < 0.3: # Random unconditional training
+            render_features = None
 
         # activate the network for noise prediction
         preds = self(inp, render_features)
 
         # calculate the loss
-        loss = self.task.loss_fn(preds, target)
+        snr = self.noise_scheduler.snr_weight(t).to(preds.device)
+        loss = self.task.loss_fn(preds, target, snr)
 
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
 
@@ -49,8 +63,12 @@ class DiffusionBase(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         inp, target, render_features = self.task.prep_data(batch)
+        x, t = inp
+
         preds = self(inp, render_features)
-        loss = self.task.loss_fn(preds, target)
+
+        snr = self.noise_scheduler.snr_weight(t).to(preds.device)
+        loss = self.task.loss_fn(preds, target, snr)
         
         self.log('val_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
 

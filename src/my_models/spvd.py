@@ -5,7 +5,7 @@ import torchsparse.nn as spnn
 
 from .modules.convolution import DownBlock, UpBlock
 from .modules.mlp import SharedMLP
-from .modules.sparse_utils import mixed_mix, PointTensor, initial_voxelize
+from .modules.sparse_utils import PointTensor, mixed_mix, initial_voxelize, voxel_to_point
 from .modules.embeddings import timestep_embedding
 
 from typing import Iterable
@@ -96,7 +96,7 @@ class SPVDownStage(nn.Module):
 
         self.residual = SharedMLP(features_list[0], features_list[-1])
 
-    def forward(self, x, z, t, image_features=None):
+    def forward(self, x, z, t, reference=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F).
@@ -110,7 +110,7 @@ class SPVDownStage(nn.Module):
             t (Tensor): Time embedding tensor of shape (B, T).
                 - B: Batch size.
                 - T: Time embedding features (`t_emb_features`).
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -131,7 +131,7 @@ class SPVDownStage(nn.Module):
 
         saved = []
         for down_block in self.down_blocks:
-            x, skip_connections = down_block(x, t, image_features)
+            x, skip_connections = down_block(x, t, reference)
             assert not torch.isnan(x.F).any(), f"x contains NaN values, down_block {len(saved)}"
             saved.extend(skip_connections)
 
@@ -182,7 +182,7 @@ class SPVUpStage(nn.Module):
 
         self.residual = SharedMLP(features_list[0], features_list[-1])
 
-    def forward(self, x, z, t, skip_connections, image_features=None):
+    def forward(self, x, z, t, skip_connections, reference=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F).
@@ -197,7 +197,7 @@ class SPVUpStage(nn.Module):
                 - B: Batch size.
                 - T: Time embedding features (`t_emb_features`).
             skip_connections List[SparseTensor]: List of intermediate features for skip connections
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -217,7 +217,7 @@ class SPVUpStage(nn.Module):
         residual = self.residual(z)
 
         for up_block in self.up_blocks:
-            x = up_block(x, t, skip_connections, image_features)
+            x = up_block(x, t, skip_connections, reference)
 
         x, z = mixed_mix(x, residual)
 
@@ -289,9 +289,11 @@ class SPVUnet(nn.Module):
             for i, up_block in enumerate(up_blocks)
         )
 
+        self.point_branch = SharedMLP(point_channels, up_blocks[-1]["features"][-1])
+
         self.conv_out = SharedMLP(up_blocks[-1]["features"][-1], point_channels)
 
-    def forward(self, inp, image_features=None):
+    def forward(self, inp, reference=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F).
@@ -299,7 +301,7 @@ class SPVUnet(nn.Module):
                 - N: Number of points.
                 - F: Number of input features (`point_channels`).
             t (int): Time stamp.
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -315,6 +317,9 @@ class SPVUnet(nn.Module):
         x, t = inp
         z = PointTensor(x.F, x.C.float())
 
+        if (isinstance(reference, list) and any(image is None for image in reference)):
+            reference = None
+
         t = timestep_embedding(t, self.t_emb_features)  # TimeStamp embedding
         t = self.t_emb_mlp(t)  # TimeStamp embedding
 
@@ -326,10 +331,14 @@ class SPVUnet(nn.Module):
         
         skip_connections = []
         for down_stage in self.down_stages:
-            x, z, residual = down_stage(x, z, t, image_features)
+            x, z, residual = down_stage(x, z, t, reference)
             skip_connections += residual
     
         for up_stage in self.up_stages:
-            x, z = up_stage(x, z, t, skip_connections, image_features)
+            x, z = up_stage(x, z, t, skip_connections, reference)
+
+        z = voxel_to_point(x, z)
+
+        z.F += self.point_branch(z.F)
         
         return self.conv_out(z).F

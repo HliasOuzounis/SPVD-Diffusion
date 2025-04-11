@@ -12,20 +12,19 @@ from typing import Any
 import os
 from tqdm import tqdm
 
-from ..utils import VisualTransformer
 from my_schedulers.ddpm_scheduler import DDPMScheduler
 
 class ModelNet40(Dataset):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
         assert split in ["train", "test"], "split should be either 'train' or 'test'"
         self.split = split
-
-        self.visual_transformer = VisualTransformer()
         
         self.path = path if path is not None else "./data/ModelNet40"
         self.sample_size = sample_size
 
         self.categories = categories if categories is not None else []
+
+        self.load_renders = load_renders
         
         self.load_data(self.path)
 
@@ -42,7 +41,8 @@ class ModelNet40(Dataset):
             if self.categories and category not in self.categories:
                 continue
             
-            for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=f"Loading renders for {category}"):
+            desc = f"Loading renders for {category}" if self.load_renders else f"Loading pointclouds for {category}"
+            for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
                 model = os.path.join(pc_path, category, self.split, file)
                 pointcloud = np.load(model)
                 
@@ -50,9 +50,10 @@ class ModelNet40(Dataset):
 
                 file, _ = os.path.splitext(file)
                 self.filenames.append(file)
-    
-                # render_features = torch.load(os.path.join(renders_path, category, self.split, f"{file}.pt"), weights_only=True)
-                # self.render_features.append(render_features)
+
+                if self.load_renders:
+                    render_features = torch.load(os.path.join(renders_path, category, self.split, f"{file}.pt"), weights_only=True)
+                    self.render_features.append(render_features)
 
         self.pointclouds = np.array(self.pointclouds)
         # Normalize and standardize the pointclouds
@@ -73,9 +74,12 @@ class ModelNet40(Dataset):
         pc = pc[idxs, :]
 
         selected_file = self.filenames[idx]
-        # render_features = self.render_features[idx]
-        # selected_view = np.random.randint(0, render_features.shape[0])
-        # render_features = render_features[selected_view]
+        render_features = selected_vew = None
+
+        if self.load_renders:
+            render_features = self.render_features[idx]
+            selected_view = np.random.randint(0, render_features.shape[0])
+            render_features = render_features[selected_view]
         
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)
@@ -86,15 +90,13 @@ class ModelNet40(Dataset):
         return {
             "idx": idx,
             "pc": pc,
-            # "render-features": render_features,
-            # "selected-view": selected_view,
-            "render-features": None,
-            "selected-view": None,
+            "render-features": render_features,
+            "selected-view": selected_view,
             "filename": selected_file,
         }
     
 class ModelNet40Sparse(ModelNet40):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
         super().__init__(path, split, sample_size, categories)
         
         self.set_voxel_size()
@@ -140,10 +142,10 @@ class ModelNet40Sparse(ModelNet40):
             "filename": filename,
         }
         
-def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:
+def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None, load_renders: bool = True) -> tuple[DataLoader, DataLoader]:
     sample_size = 2048
-    train_dataset = ModelNet40Sparse(path, "train", sample_size, categories)
-    test_dataset = ModelNet40Sparse(path, "test", sample_size, categories)
+    train_dataset = ModelNet40Sparse(path, "train", sample_size, categories, load_renders)
+    test_dataset = ModelNet40Sparse(path, "test", sample_size, categories, load_renders)
     
     train_dataset.set_voxel_size(1e-5)
     test_dataset.set_voxel_size(1e-5)

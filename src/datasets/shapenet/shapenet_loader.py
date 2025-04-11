@@ -12,29 +12,27 @@ from typing import Any
 import os
 from tqdm import tqdm
 
-from ..utils import VisualTransformer
 from my_schedulers.ddpm_scheduler import DDPMScheduler
 
 from .shapenet_utils import synsetid_to_category, category_to_synsetid
 
 
 class ShapeNet(Dataset):
-    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
+    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
         assert split in ["train", "test", "val"], "split should be either 'train' or 'test' or 'val'"
         self.split = split
-
-        self.visual_transformer = VisualTransformer()
         
-        self.path = path if path is not None else "./data/ShapeNetCore"
+        self.path = path if path is not None else "./data/ShapeNet"
         self.sample_size = sample_size
 
         self.categories = [category_to_synsetid[cat] for cat in categories] if categories is not None else []
+        self.load_renders = load_renders
         
         self.load_data(self.path)
     
     def load_data(self, path: str) -> None:
         pc_path = os.path.join(path, "pointclouds")
-        renders_path = os.path.join(path, "processed_renders")
+        renders_path = os.path.join(path, "embed_renders")
 
         self.pointclouds = []
         self.render_features = []
@@ -45,18 +43,29 @@ class ShapeNet(Dataset):
             if self.categories and category not in self.categories:
                 continue
             
-            desc = f"Loading pointclouds for {synsetid_to_category[category]} ({category})"
+            desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
+            c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
+                if c > 1499:
+                    continue
+                c += 1
+                
                 model = os.path.join(pc_path, category, self.split, file)
                 pointcloud = np.load(model)
-                
+
                 self.pointclouds.append(pointcloud)
 
                 file, _ = os.path.splitext(file)
-                self.filenames.append(os.path.join(category, file))
-    
-                # render_features = torch.load(os.path.join(renders_path, category, self.split, f"{file}.pt"), weights_only=True)
-                # self.render_features.append(render_features)
+                self.filenames.append(os.path.join(category, self.split, file))
+
+                if self.load_renders:
+                    render_features = []
+                    for view in range(8):
+                        render_file = os.path.join(renders_path, category, self.split, file, f"00{view}_patch_embs.pt")
+                        if os.path.exists(render_file):
+                            render_features.append(torch.load(render_file, weights_only=True))
+                    render_features = torch.stack(render_features, dim=0)
+                    self.render_features.append(render_features)
         
         self.pointclouds = np.array(self.pointclouds)
         # Normalize and standardize the pointclouds
@@ -64,10 +73,12 @@ class ShapeNet(Dataset):
         std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
 
         self.pointclouds = (self.pointclouds - mean) / std
+
+    def class_weight(self, category: str) -> float:
+        return self.class_sizes[category] / len(self.pointclouds)
     
     def __len__(self) -> int:
         return len(self.pointclouds)
-    
     
     def __getitem__(self, idx) -> Any:
         pc = self.pointclouds[idx]
@@ -76,9 +87,14 @@ class ShapeNet(Dataset):
         pc = pc[idxs, :]
 
         selected_file = self.filenames[idx]
-        # render_features = self.render_features[idx]
-        # selected_view = np.random.randint(0, render_features.shape[0])
-        # render_features = render_features[selected_view]
+
+        render_features = None
+        selected_view = None
+        
+        if self.load_renders:
+            render_features = self.render_features[idx]
+            selected_view = np.random.randint(0, render_features.shape[0])
+            render_features = render_features[selected_view]
         
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)
@@ -89,17 +105,15 @@ class ShapeNet(Dataset):
         return {
             "idx": idx,
             "pc": pc,
-            # "render-features": render_features,
-            # "selected-view": selected_view,
-            "render-features": None,
-            "selected-view": None,
+            "render-features": render_features,
+            "selected-view": selected_view,
             "filename": selected_file,
         }
 
 
 class ShapeNetSparse(ShapeNet):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None) -> None:
-        super().__init__(path, split, sample_size, categories)
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
+        super().__init__(path, split, sample_size, categories, load_renders)
         
         self.set_voxel_size()
         self.set_scheduler()
@@ -119,16 +133,16 @@ class ShapeNetSparse(ShapeNet):
         selected_view = data["selected-view"]
         filename = data["filename"]
         
-        pc, t, noise = self.noise_scheduler(pc)
+        noisy_pc, t, noise = self.noise_scheduler(pc)
         
-        pc = pc.numpy()
+        noisy_pc = noisy_pc.numpy()
         noise = noise.numpy()
         
-        coords = pc - np.min(pc, axis=0, keepdims=True)
+        coords = noisy_pc - np.min(noisy_pc, axis=0, keepdims=True)
         coords, indices = sparse_quantize(coords, self.voxel_size, return_index=True)
         
         coords = torch.tensor(coords, dtype=torch.int)
-        feats = torch.tensor(pc[indices], dtype=torch.float)
+        feats = torch.tensor(noisy_pc[indices], dtype=torch.float)
         noise = torch.tensor(noise[indices], dtype=torch.float)
         
         noisy_pc = SparseTensor(coords=coords, feats=feats)
@@ -137,6 +151,7 @@ class ShapeNetSparse(ShapeNet):
          
         return {
             "input": noisy_pc,
+            "pc": pc,
             "t": t,
             "noise": noise,
             "render-features": render_features,
@@ -144,11 +159,10 @@ class ShapeNetSparse(ShapeNet):
             "filename": filename,
         }
         
-def get_dataloaders(path: str, batch_size: int = 32, num_workers: int = 4, categories: list[str] | None = None) -> tuple[DataLoader, DataLoader]:
-    sample_size = 2048
-    train_dataset = ShapeNetSparse(path, "train", sample_size, categories)
-    test_dataset = ShapeNetSparse(path, "test", sample_size, categories)
-    val_dataset = ShapeNetSparse(path, "val", sample_size, categories)
+def get_dataloaders(path: str, batch_size: int = 32, sample_size: int = 2048, num_workers: int = 4, categories: list[str] | None = None, load_renders: bool = True) -> tuple[DataLoader, DataLoader]:
+    train_dataset = ShapeNetSparse(path, "train", sample_size, categories, load_renders)
+    test_dataset = ShapeNetSparse(path, "test", sample_size, categories, load_renders)
+    val_dataset = ShapeNetSparse(path, "val", sample_size, categories, load_renders)
     
     train_dataset.set_voxel_size(1e-5)
     test_dataset.set_voxel_size(1e-5)

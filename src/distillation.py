@@ -49,7 +49,7 @@ def main():
     while N > 0:
         previous_checkpoint = f"../checkpoints/ModelNet/distillation/{N}-steps.ckpt"
         distillation_agent.set_teacher(Teacher(model_params, previous_checkpoint, N))
-        distillation_agent.set_student(Student(model_params))
+        distillation_agent.set_student(Student(model_params, previous_checkpoint))
 
         trainer = L.Trainer(
             max_epochs=100, 

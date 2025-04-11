@@ -57,4 +57,5 @@ synsetid_to_category = {
     "04530566": "vessel",
     "04554684": "washer",
 }
+
 category_to_synsetid = {v: k for k, v in synsetid_to_category.items()}

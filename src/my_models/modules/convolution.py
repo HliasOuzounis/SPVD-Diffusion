@@ -65,10 +65,10 @@ class SparseResidualBlock(nn.Module):
         if self.has_attn:
             self.attn = SparseAttention(features_out, attn_heads)
             # VIT has converted the renders to 197x768 feature tokens
-            image_features = 768
-            self.cross_attn = SparseCrossAttention(features_out, image_features, attn_heads)
+            reference_features = 768
+            self.cross_attn = SparseCrossAttention(features_out, reference_features, attn_heads)
 
-    def forward(self, x_in, t, image_features=None):
+    def forward(self, x_in, t, reference=None):
         """
         Args:
             x_in (SparseTensor): Input sparse tensor of shape (B, N, F).
@@ -78,7 +78,7 @@ class SparseResidualBlock(nn.Module):
             t (Tensor): Time embedding tensor of shape (B, T).
                 - B: Batch size.
                 - T: Time embedding features (`t_emb_features`).
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -97,8 +97,8 @@ class SparseResidualBlock(nn.Module):
 
         if self.has_attn:
             x = self.attn(x)
-            if image_features is not None:
-                x = self.cross_attn(x, image_features)
+            if reference is not None:
+                x = self.cross_attn(x, reference)
 
         return x
 
@@ -134,7 +134,7 @@ class DownBlock(nn.Module):
             else spnn.Conv3d(features_in, features_out, 1)
         )
 
-    def forward(self, x, t, image_features=None):
+    def forward(self, x, t, reference=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F).
@@ -144,7 +144,7 @@ class DownBlock(nn.Module):
             t (Tensor): Time embedding tensor of shape (B, T).
                 - B: Batch size.
                 - T: Time embedding features (`t_emb_features`).
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -157,7 +157,7 @@ class DownBlock(nn.Module):
         """
         skip_connections = [x]
         for res_block in self.res_blocks:
-            x = res_block(x, t, image_features)
+            x = res_block(x, t, reference)
             skip_connections.append(x)
         
         x = self.down(x)
@@ -192,7 +192,7 @@ class UpBlock(nn.Module):
             else spnn.Conv3d(features_in, features_out, 1, transposed=True)
         )
     
-    def forward(self, x, t, skip_connections, image_features=None):
+    def forward(self, x, t, skip_connections, reference=None):
         """
         Args:
             x (SparseTensor): Input sparse tensor of shape (B, N, F). Concatenated with the skip connection from the downsample path.
@@ -202,7 +202,7 @@ class UpBlock(nn.Module):
             t (Tensor): Time embedding tensor of shape (B, T).
                 - B: Batch size.
                 - T: Time embedding features (`t_emb_features`).
-            image_features (Tensor, optional): Image features tensor of shape (B, T, F).
+            reference (Tensor, optional): Image features tensor of shape (B, T, F).
                 - B: Batch size.
                 - T: Number of tokens (e.g., 179).
                 - F: Number of features (e.g., 784).
@@ -215,7 +215,7 @@ class UpBlock(nn.Module):
         """
         for res_block in self.res_blocks:
             x = torchsparse.cat([x, skip_connections.pop()])
-            x = res_block(x, t, image_features)
+            x = res_block(x, t, reference)
         
         x = self.up_sample(x)
 

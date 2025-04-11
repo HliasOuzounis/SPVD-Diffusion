@@ -5,7 +5,7 @@ class SharedMLP(nn.Module):
         super().__init__()
         self.layers = nn.Sequential(
             nn.BatchNorm1d(features_in),
-            nn.ReLU(),
+            nn.SiLU(),
             nn.Linear(features_in, features_out),
         )
     

@@ -126,8 +126,8 @@ class ModelNet40Downloader:
 
                 os.makedirs(os.path.join(path, category, self.split), exist_ok=True)
                 
-                save_path = os.path.join(path, f"{category}/{self.split}/{file}.pt")
-                torch.save(model_views, save_path)
+                save_path = os.path.join(path, f"{category}/{self.split}/{file}.npy")
+                np.save(save_path, model_views.numpy())
 
 
 if __name__ == "__main__":

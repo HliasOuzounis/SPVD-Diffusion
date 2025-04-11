@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 class Scheduler(ABC):
-    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3):
+    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True):
         """
         Args:
             model: The model to sample from
@@ -14,24 +14,31 @@ class Scheduler(ABC):
             The generated samples of shape (num_samples, num_points, num_features)
         """
         shape = (num_samples, num_points, num_features)
-        x_t = self.create_noise(shape, model.device)
+        x_t = self.create_noise(shape, model.device) if starting_noise is None else starting_noise
+
+        if reference is not None:
+            assert len(reference) == num_samples, "Reference image batch size must match the number of samples"
+        
         steps = list(reversed(range(self.steps)))
         
         for t in tqdm(steps, desc="Sampling"):
-            x_t = self.sample_step(model, x_t, t, shape, model.device)
+            x_t = self.sample_step(model, x_t, t, shape, model.device, reference=reference, stochastic=stochastic)
         
         x_t = self.post_process(x_t)
         
         return x_t.reshape(shape)
 
     @torch.no_grad()
-    def sample_step(self, model, x, t, shape, device):
+    def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True):
         if isinstance(t, int) or t.numel() == 1:
             t_batch = torch.full((shape[0],), t, device=device)
         else:
             t_batch = t
 
-        noise_prediction = model((x, t_batch))
+        t_batch = torch.clamp(t_batch, min=0)
+
+        # noise_prediction = model((x, t_batch), reference)
+        noise_prediction = model((x, t_batch, reference))
 
         return self.update(x, t_batch, noise_prediction, shape)
 
@@ -54,4 +61,15 @@ class Scheduler(ABC):
 
     @abstractmethod
     def create_noise(self, shape, device):
+        pass
+
+    @abstractmethod
+    def snr_weight(self, t):
+        """
+        Compute the Signal-to-Noise Ratio (SNR) at time step t.
+        Args:
+            t: The time step
+        Returns:
+            The SNR value
+        """
         pass
