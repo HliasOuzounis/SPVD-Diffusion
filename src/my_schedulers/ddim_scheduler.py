@@ -6,50 +6,36 @@ from torchsparse import SparseTensor
 from .scheduler import Scheduler
 from my_models.modules.sparse_utils import batch_sparse_quantize_torch
 
-class DDPMScheduler(Scheduler):
+class DDIMScheduler(Scheduler):
     def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt'):
         super().__init__()
 
         self.steps = steps
         self.beta = torch.linspace(beta_min, beta_max, steps, requires_grad=False)
-        self.alpha = 1. - self.beta
-        self.alpha_cumprod = torch.cumprod(self.alpha, dim=0)
+        self._alpha = 1. - self.beta
+        self.alpha_cumprod = torch.cumprod(self._alpha, dim=0)
         self.sigma = self.beta.sqrt() # Linear schedule
-
-    def update(self, x, t, noise, shape, stochastic=True):
+        
+    def update(self, x, t, noise, shape, stochastic=False):
         bs = shape[0]
 
         x = x.reshape(shape)
         noise = noise.reshape(shape)
         device = x.device
         
-        epsilon = torch.randn(x.shape).to(device) if stochastic else torch.zeros_like(x)
-        for i, t_i in enumerate(t):
-            if t_i == 0:
-                epsilon[i] = torch.zeros_like(epsilon[i])
-        epsilon = epsilon.to(device)
-
         t = t.cpu()
-        sigma_t = self.sigma[t].reshape(bs, 1, 1).to(device)
-        a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
-
-        ahat_t = self.alpha_cumprod[t].reshape(bs, 1, 1).to(device)
         
-        a_t1_bar = self.alpha_cumprod[t - 1].reshape(bs, 1, 1).to(device)
-        for i, t_i in enumerate(t):
-            if t_i == 0:
-                a_t1_bar[i] = torch.ones_like(a_t1_bar[i])
+        a_t, sigma_t, a_t1, sigma_t1 = self.get_params(t, bs, device)
         
-        x_0 = self.denoise(x, noise, a_t, ahat_t)
-        new_x = 1 / a_t.sqrt() * x_0 + sigma_t * epsilon
-
-        new_x = new_x - new_x.mean(dim=1, keepdim=True)
-
+        new_x = a_t1 / a_t * (x - sigma_t * noise) + sigma_t1 * noise
+        
+        # new_x = new_x - new_x.mean(dim=1, keepdim=True)
         return new_x
-
-    def denoise(self, x, noise, a_t, ahat_t):
-        x_0 = x - (1 - a_t) / (1 - ahat_t).sqrt() * noise
-        return x_0
+        
+    def denoise(self, x, noise, a_t):
+        sigma_t = (1 - ahat_t ** 2).sqrt()
+        x0 = (x - sigma_t * noise) / a_t
+        return x0
     
     def add_noise(self, x0, t=None):
         if t is None:
@@ -58,26 +44,34 @@ class DDPMScheduler(Scheduler):
         noise = torch.randn(x0.shape, requires_grad=False)
 
         a_t_bar = self.alpha_cumprod[t]
+        x_t = a_t_bar.sqrt() * x0 + (1 - a_t_bar).sqrt() * noise
 
-        return x0 * a_t_bar.sqrt() + noise * (1 - a_t_bar).sqrt(), t, noise
-
+        return x_t
+    
     def create_noise(self, shape, device):
         return torch.randn(shape).clamp(-5, 5).to(device)
-
+    
     def snr_weight(self, t):
         return torch.ones_like(t)
-        t = t.cpu()
-        snr = self.alpha_cumprod[t] / (1 - self.alpha_cumprod[t])
-        return snr 
-        # src: https://arxiv.org/pdf/2303.09556
-        gamma = 5
-        return torch.clamp(gamma / snr, max=1)
 
     def __call__(self, x, t=None):
         return self.add_noise(x, t)
 
+    def get_params(self, t, bs, device):
+        t = t.clamp(0, self.steps - 1)
+        t = t.cpu()
+        
+        a_t = self.alpha_cumprod[t].sqrt().reshape(bs, 1, 1).to(device)
+        sigma_t = (1 - a_t ** 2).sqrt()
 
-class DDPMSparseScheduler(DDPMScheduler):
+        a_t1 = torch.ones_like(a_t).to(device)
+        a_t1[t != 0] = self.alpha_cumprod[t[t != 0] - 1].sqrt().reshape(-1, 1, 1).to(device)
+        sigma_t1 = (1 - a_t1 ** 2).sqrt()
+
+        return a_t, sigma_t, a_t1, sigma_t1
+    
+
+class DDIMSparseScheduler(DDIMScheduler):
     def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt', pres=1e-5):
         super().__init__(beta_min, beta_max, steps, mode, sigma)
         self.pres = pres
@@ -106,7 +100,7 @@ class DDPMSparseScheduler(DDPMScheduler):
         return SparseTensor(coords=coords, feats=feats).to(device)
 
     def create_noise(self, shape, device):
-        x = torch.randn(shape).clamp(-5, 5).to(device) # Clamping to avoid outliers
+        x = super().create_noise(shape, device)
         return self.torch2sparse(x)
 
     def update(self, x, t, noise, shape, stochastic=True):

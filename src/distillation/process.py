@@ -8,9 +8,9 @@ from models.lightningBase import Task
 
 class DistillationTask(Task):
     def prep_data(self, batch):
-        noisy_data, t, _ = batch['input'], batch['t'], batch['noise']
-        inp = (noisy_data, t)
-        return inp, noisy_data
+        noisy_data, t = batch['input'], batch['t']
+        reference = batch['render-features']
+        return (noisy_data, t, reference)
     
     def loss_fn(self, pred, target):
         return F.mse_loss(pred, target)
@@ -35,34 +35,34 @@ class DistillationProcess(L.LightningModule):
         return self.student(x)
     
     def training_step(self, batch, batch_idx):
-        inp, _ = self.task.prep_data(batch)
+        inp = self.task.prep_data(batch)
+        
+        student_preds = self.student(inp)
 
         with torch.no_grad():
-            teacher_preds = self.teacher(inp)
+            target = self.teacher.target(inp, self.student.diffusion_scheduler.get_params)
         
-        student_preds = self(inp)
-        
-        loss = self.task.loss_fn(student_preds, teacher_preds)
+        loss = self.task.loss_fn(student_preds, target)
         
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
         
         return loss
     
     def validation_step(self, batch, batch_idx):
-        inp, target = self.task.prep_data(batch)
+        inp = self.task.prep_data(batch)
+
+        student_preds = self(inp)
 
         with torch.no_grad():
-            teacher_preds = self.teacher(inp)
+            target = self.teacher.target(inp, self.student.diffusion_scheduler.get_params)
         
-        student_preds = self(inp)
-        
-        loss = self.task.loss_fn(student_preds, teacher_preds)
+        loss = self.task.loss_fn(student_preds, target)
         
         self.log('val_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
     
     def configure_optimizers(self):
         # Create the optimizer
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.learning_rate, weight_decay=0.05)
+        optimizer = torch.optim.AdamW(self.student.parameters(), lr=self.learning_rate, weight_decay=0.05)
 
         # Create a dummy scheduler (we will update `total_steps` later)
         self.lr_scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.learning_rate, total_steps=1)

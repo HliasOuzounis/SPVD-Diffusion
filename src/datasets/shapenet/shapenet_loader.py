@@ -112,11 +112,11 @@ class ShapeNet(Dataset):
 
 
 class ShapeNetSparse(ShapeNet):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, n_steps=1024) -> None:
         super().__init__(path, split, sample_size, categories, load_renders)
         
         self.set_voxel_size()
-        self.set_scheduler()
+        self.set_scheduler(n_steps=n_steps)
         
     def set_scheduler(self, beta_min=0.0001, beta_max=0.02, n_steps=1024, mode='linear'):
         self.noise_scheduler = DDPMScheduler(beta_min, beta_max, n_steps, mode)
@@ -159,10 +159,10 @@ class ShapeNetSparse(ShapeNet):
             "filename": filename,
         }
         
-def get_dataloaders(path: str, batch_size: int = 32, sample_size: int = 2048, num_workers: int = 4, categories: list[str] | None = None, load_renders: bool = True) -> tuple[DataLoader, DataLoader]:
-    train_dataset = ShapeNetSparse(path, "train", sample_size, categories, load_renders)
-    test_dataset = ShapeNetSparse(path, "test", sample_size, categories, load_renders)
-    val_dataset = ShapeNetSparse(path, "val", sample_size, categories, load_renders)
+def get_dataloaders(path: str, batch_size: int = 32, sample_size: int = 2048, num_workers: int = 4, categories: list[str] | None = None, load_renders: bool = True, n_steps=1024) -> tuple[DataLoader, DataLoader]:
+    train_dataset = ShapeNetSparse(path, "train", sample_size, categories, load_renders, n_steps)
+    test_dataset = ShapeNetSparse(path, "test", sample_size, categories, load_renders, n_steps)
+    val_dataset = ShapeNetSparse(path, "val", sample_size, categories, load_renders, n_steps)
     
     train_dataset.set_voxel_size(1e-5)
     test_dataset.set_voxel_size(1e-5)

@@ -2,57 +2,82 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models import SPVD_S, SPVD
-from my_models.spvd import SPVUnet
+from models.ddpm_unet_cattn import SPVUnet
+# from my_models.spvd import SPVUnet
 from my_schedulers.ddpm_scheduler import DDPMSparseScheduler
+from my_schedulers.ddim_scheduler import DDIMSparseScheduler
 
 import lightning as L
 
 class Teacher(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps, init_steps=1000):
+    def __init__(self, model_params, model_ckpt, diffusion_steps):
         super().__init__()
-        self.model = SPVD_S()
-        weights = torch.load(model_ckpt, weights_only=True)
+        self.model = SPVUnet(**model_params)
+        weights = torch.load(model_ckpt, weights_only=True)['state_dict']
         self.load_state_dict(weights)
-        self.eval()
         
-        self.diffusion_scheduler = DDPMSparseScheduler(steps=diffusion_steps)
-        self.current_steps = diffusion_steps
-        self.init_steps = init_steps
-    
-    def forward(self, inp, reference_image=None):
-        # Return the noise prediction after 2 diffusion steps
-        x_t, t = inp
+        # self.diffusion_scheduler = DDPMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps)
 
-        # Convert the step from the dataset to the equivalent step in the diffusion process
-        # For example, if the dataset has 1024 steps and the current Teacher model has 16 steps,
-        # step 200 from the dataset would be step 200 * 16 // 1024 = 3 for the Teacher model
-        t = t * self.current_steps // self.init_steps
+        # Freeze the model parameters
+        self.freeze()
+
+    def freeze(self):
+        for param in self.parameters():
+            param.requires_grad = False
+        self.eval()
+    
+    def forward(self, inp):
+        x_t, t, reference = inp
 
         bs = t.shape[0]
         shape = (bs, x_t.F.shape[0] // bs, x_t.F.shape[1])
+        device = x_t.F.device
 
-        x_t_1 = self.diffusion_scheduler.sample_step(self.model, x_t, t, shape=shape, device=x_t.F.device)
-        x_t_2 = self.diffusion_scheduler.sample_step(self.model, x_t_1, t - 1, shape=shape, device=x_t.F.device)
+        t *= 2
+    
+        x_t1 = self.diffusion_scheduler.sample_step(self.model, x_t, t, shape=shape, device=device, reference=reference, stochastic=False)
+        x_t2 = self.diffusion_scheduler.sample_step(self.model, x_t1, t - 1, shape=shape, device=device, reference=reference, stochastic=False)
+        
+        return x_t2
+    
+    def target(self, inp, get_params):
+        x_t, t, reference = inp
+        
+        bs = t.shape[0]
+        shape = (bs, x_t.F.shape[0] // bs, x_t.F.shape[1])
+        device = x_t.F.device
 
-        # target_x = (x_t_2 - x_t * sigma_t / sigma_t'') / (a_t'' - a_t * sigma_t / sigma_t'')
-        # a_t = self.diffusion_scheduler.alpha[t]
-        # a_t_2 = self.diffusion_scheduler.alpha[t - 2] if t > 1 else self.diffusion_scheduler.alpha[0]
-        # sigma_t = self.diffusion_scheduler.sigma[t]
-        # sigma_t_2 = self.diffusion_scheduler.sigma[t - 2] if t > 1 else self.diffusion_scheduler.sigma[0]
-
-        target = x_t_2 - x_t 
-
-        return target_x
+        x_t2 = self.forward(inp)
+        
+        x_t = x_t.F.reshape(shape)
+        x_t2 = x_t2.F.reshape(shape)
+        
+        a_t, sigma_t, a_t2, sigma_t2 = get_params(inp[1], bs, device)
+        
+        target = (x_t2 - a_t2 / a_t * x_t) / (sigma_t2 - a_t2 / a_t * sigma_t)
+        # print(target.max(), target.min(), (sigma_t2 - a_t2 / a_t * sigma_t).max(), (sigma_t2 - a_t2 / a_t * sigma_t).min())
+        return target
 
 
 class Student(nn.Module):
-    def __init__(self, model_params, model_ckpt):
+    def __init__(self, model_params, model_ckpt, diffusion_steps):
         super().__init__()
-        self.model = SPVD_S()
-        weights = torch.load(model_ckpt, weights_only=True)
+        self.model = SPVUnet(**model_params)
+        weights = torch.load(model_ckpt, weights_only=True)['state_dict']
         self.load_state_dict(weights)
-    
-    def forward(self, inp, reference_image=None):
-        x_t, t = x
-        return self.model((x_t, t))
+        
+        # self.diffusion_scheduler = DDPMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps)
+
+    def forward(self, inp):
+        xt, t, reference = inp
+
+        bs = t.shape[0]
+        shape = (bs, xt.F.shape[0] // bs, xt.F.shape[1])
+        device = xt.F.device
+                
+        noise = self.model((xt, t, reference))
+        noise = noise.reshape(shape)
+        
+        return noise
