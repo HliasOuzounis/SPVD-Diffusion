@@ -13,6 +13,7 @@ import os
 from tqdm import tqdm
 
 from my_schedulers.ddpm_scheduler import DDPMScheduler
+from my_schedulers.ddim_scheduler import DDIMScheduler
 
 from .shapenet_utils import synsetid_to_category, category_to_synsetid
 
@@ -116,10 +117,10 @@ class ShapeNetSparse(ShapeNet):
         super().__init__(path, split, sample_size, categories, load_renders)
         
         self.set_voxel_size()
-        self.set_scheduler(n_steps=n_steps)
+        self.set_scheduler(DDIMScheduler(steps=n_steps))
         
-    def set_scheduler(self, beta_min=0.0001, beta_max=0.02, n_steps=1024, mode='linear'):
-        self.noise_scheduler = DDPMScheduler(beta_min, beta_max, n_steps, mode)
+    def set_scheduler(self, scheduler):
+        self.noise_scheduler = scheduler
     
     def set_voxel_size(self, voxel_size: float = 1e-8) -> None:
         self.voxel_size = voxel_size

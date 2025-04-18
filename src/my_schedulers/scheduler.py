@@ -3,6 +3,17 @@ import torch
 from tqdm import tqdm
 
 class Scheduler(ABC):
+    def __init__(self, steps: int = 1000, beta_min: float = 0.0001, beta_max: float = 0.02, mode: str = 'linear', init_steps: int = 1000):
+        """
+        Args:
+            steps: Number of steps for the scheduler
+        """
+        
+        assert steps > 0, "Number of steps must be positive"
+        self.steps = steps
+
+        self.beta = torch.linspace(beta_min, beta_max, init_steps)
+
     def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda'):
         """
         Args:
@@ -53,24 +64,9 @@ class Scheduler(ABC):
         pass
 
     @abstractmethod
-    def denoise(self, x, noise, a_t_cumprod):
-        pass
-
-    @abstractmethod
     def add_noise(self, x, t):
         pass
 
     @abstractmethod
     def create_noise(self, shape, device):
-        pass
-
-    @abstractmethod
-    def snr_weight(self, t):
-        """
-        Compute the Signal-to-Noise Ratio (SNR) at time step t.
-        Args:
-            t: The time step
-        Returns:
-            The SNR value
-        """
         pass

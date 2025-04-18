@@ -40,7 +40,7 @@ class DistillationProcess(L.LightningModule):
         student_preds = self.student(inp)
 
         with torch.no_grad():
-            target = self.teacher.target(inp, self.student.diffusion_scheduler.get_params)
+            target = self.teacher.target(inp)
         
         loss = self.task.loss_fn(student_preds, target)
         
@@ -54,7 +54,7 @@ class DistillationProcess(L.LightningModule):
         student_preds = self(inp)
 
         with torch.no_grad():
-            target = self.teacher.target(inp, self.student.diffusion_scheduler.get_params)
+            target = self.teacher.target(inp)
         
         loss = self.task.loss_fn(student_preds, target)
         
@@ -81,3 +81,9 @@ class DistillationProcess(L.LightningModule):
 
         # Read the batch size for logging
         self.tr_batch_size = self.trainer.train_dataloader.batch_size
+
+    def check_initialization(self):
+        steps = self.student.diffusion_scheduler.steps
+        for i in range(steps):
+            assert self.student.diffusion_scheduler.alpha[i] == self.teacher.diffusion_scheduler.alpha[2*i], f"Alpha mismatch at step {i}"
+        print(f"Initialization check passed for {steps} steps.")

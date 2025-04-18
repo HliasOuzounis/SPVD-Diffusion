@@ -10,14 +10,15 @@ from my_schedulers.ddim_scheduler import DDIMSparseScheduler
 import lightning as L
 
 class Teacher(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps):
+    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler=None):
         super().__init__()
         self.model = SPVUnet(**model_params)
-        weights = torch.load(model_ckpt, weights_only=True)['state_dict']
+        weights = torch.load(model_ckpt, weights_only=True)
+        if 'state_dict' in weights:
+            weights = weights['state_dict']
         self.load_state_dict(weights)
         
-        # self.diffusion_scheduler = DDPMSparseScheduler(steps=diffusion_steps)
-        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = scheduler if scheduler is not None else DDIMSparseScheduler(steps=diffusion_steps)
 
         # Freeze the model parameters
         self.freeze()
@@ -41,7 +42,7 @@ class Teacher(nn.Module):
         
         return x_t2
     
-    def target(self, inp, get_params):
+    def target(self, inp):
         x_t, t, reference = inp
         
         bs = t.shape[0]
@@ -53,22 +54,23 @@ class Teacher(nn.Module):
         x_t = x_t.F.reshape(shape)
         x_t2 = x_t2.F.reshape(shape)
         
-        a_t, sigma_t, a_t2, sigma_t2 = get_params(inp[1], bs, device)
+        a_t, sigma_t, _, _ = self.diffusion_scheduler.get_params(t, bs, device)
+        _, _, a_t2, sigma_t2 = self.diffusion_scheduler.get_params(t - 1, bs, device)
         
         target = (x_t2 - a_t2 / a_t * x_t) / (sigma_t2 - a_t2 / a_t * sigma_t)
-        # print(target.max(), target.min(), (sigma_t2 - a_t2 / a_t * sigma_t).max(), (sigma_t2 - a_t2 / a_t * sigma_t).min())
         return target
 
 
 class Student(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps):
+    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler=None):
         super().__init__()
         self.model = SPVUnet(**model_params)
-        weights = torch.load(model_ckpt, weights_only=True)['state_dict']
+        weights = torch.load(model_ckpt, weights_only=True)
+        if 'state_dict' in weights:
+            weights = weights['state_dict']
         self.load_state_dict(weights)
         
-        # self.diffusion_scheduler = DDPMSparseScheduler(steps=diffusion_steps)
-        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = scheduler if scheduler is not None else DDIMSparseScheduler(steps=diffusion_steps)
 
     def forward(self, inp):
         xt, t, reference = inp
@@ -76,7 +78,7 @@ class Student(nn.Module):
         bs = t.shape[0]
         shape = (bs, xt.F.shape[0] // bs, xt.F.shape[1])
         device = xt.F.device
-                
+
         noise = self.model((xt, t, reference))
         noise = noise.reshape(shape)
         

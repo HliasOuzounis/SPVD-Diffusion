@@ -7,15 +7,18 @@ from .scheduler import Scheduler
 from my_models.modules.sparse_utils import batch_sparse_quantize_torch
 
 class DDIMScheduler(Scheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt'):
-        super().__init__()
+    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', prev_alpha=None):
+        super().__init__(steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
 
-        self.steps = steps
-        self.beta = torch.linspace(beta_min, beta_max, steps, requires_grad=False)
-        self._alpha = 1. - self.beta
-        self.alpha_cumprod = torch.cumprod(self._alpha, dim=0)
-        self.sigma = self.beta.sqrt() # Linear schedule
-        
+        if prev_alpha is not None:
+            prev_steps = len(prev_alpha)
+            ratio = 2 if prev_steps != steps else 1
+            self.alpha = prev_alpha[::ratio]
+        else:
+            self.alpha = torch.cumprod(1 - self.beta, dim=0).sqrt()
+
+        self.sigma = (1 - self. alpha ** 2).sqrt()
+
     def update(self, x, t, noise, shape, stochastic=False):
         bs = shape[0]
 
@@ -43,10 +46,9 @@ class DDIMScheduler(Scheduler):
 
         noise = torch.randn(x0.shape, requires_grad=False)
 
-        a_t_bar = self.alpha_cumprod[t]
-        x_t = a_t_bar.sqrt() * x0 + (1 - a_t_bar).sqrt() * noise
+        x_t = self.alpha[t] * x0 + self.sigma[t] * noise
 
-        return x_t
+        return x_t, t, noise
     
     def create_noise(self, shape, device):
         return torch.randn(shape).clamp(-5, 5).to(device)
@@ -61,19 +63,22 @@ class DDIMScheduler(Scheduler):
         t = t.clamp(0, self.steps - 1)
         t = t.cpu()
         
-        a_t = self.alpha_cumprod[t].sqrt().reshape(bs, 1, 1).to(device)
-        sigma_t = (1 - a_t ** 2).sqrt()
+        a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
+        sigma_t = self.sigma[t].reshape(bs, 1, 1).to(device)
+
+        t_not_zeros = (t[t != 0]).shape[0]
 
         a_t1 = torch.ones_like(a_t).to(device)
-        a_t1[t != 0] = self.alpha_cumprod[t[t != 0] - 1].sqrt().reshape(-1, 1, 1).to(device)
-        sigma_t1 = (1 - a_t1 ** 2).sqrt()
+        a_t1[t != 0] = self.alpha[t[t != 0] - 1].reshape(t_not_zeros, 1, 1).to(device)
+        sigma_t1 = torch.zeros_like(sigma_t).to(device)
+        sigma_t1[t != 0] = self.sigma[t[t != 0] - 1].reshape(t_not_zeros, 1, 1).to(device)
 
         return a_t, sigma_t, a_t1, sigma_t1
     
 
 class DDIMSparseScheduler(DDIMScheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt', pres=1e-5):
-        super().__init__(beta_min, beta_max, steps, mode, sigma)
+    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', prev_alpha=None, pres=1e-5):
+        super().__init__(beta_min, beta_max, steps, mode, prev_alpha=prev_alpha)
         self.pres = pres
 
     def torch2sparse(self, coords, feats=None):
