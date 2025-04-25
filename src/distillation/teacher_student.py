@@ -10,7 +10,7 @@ from my_schedulers.ddim_scheduler import DDIMSparseScheduler
 import lightning as L
 
 class Teacher(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler=None):
+    def __init__(self, model_params, model_ckpt, diffusion_steps):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
@@ -18,7 +18,7 @@ class Teacher(nn.Module):
             weights = weights['state_dict']
         self.load_state_dict(weights)
         
-        self.diffusion_scheduler = scheduler if scheduler is not None else DDIMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
 
         # Freeze the model parameters
         self.freeze()
@@ -62,7 +62,7 @@ class Teacher(nn.Module):
 
 
 class Student(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler=None):
+    def __init__(self, model_params, model_ckpt, diffusion_steps):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
@@ -70,7 +70,8 @@ class Student(nn.Module):
             weights = weights['state_dict']
         self.load_state_dict(weights)
         
-        self.diffusion_scheduler = scheduler if scheduler is not None else DDIMSparseScheduler(steps=diffusion_steps)
+        self.diffusion_scheduler = DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
+
 
     def forward(self, inp):
         xt, t, reference = inp

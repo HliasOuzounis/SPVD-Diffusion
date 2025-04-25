@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 class Scheduler(ABC):
-    def __init__(self, steps: int = 1000, beta_min: float = 0.0001, beta_max: float = 0.02, mode: str = 'linear', init_steps: int = 1000):
+    def __init__(self, init_steps: int|None = None, steps: int = 1000, beta_min: float = 0.0001, beta_max: float = 0.02, mode: str = 'linear'):
         """
         Args:
             steps: Number of steps for the scheduler
@@ -11,6 +11,9 @@ class Scheduler(ABC):
         
         assert steps > 0, "Number of steps must be positive"
         self.steps = steps
+
+        if init_steps is None:
+            init_steps = steps
 
         self.beta = torch.linspace(beta_min, beta_max, init_steps)
 

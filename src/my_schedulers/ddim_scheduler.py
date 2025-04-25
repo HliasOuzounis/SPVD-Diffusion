@@ -7,15 +7,16 @@ from .scheduler import Scheduler
 from my_models.modules.sparse_utils import batch_sparse_quantize_torch
 
 class DDIMScheduler(Scheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', prev_alpha=None):
-        super().__init__(steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
+    def __init__(self, beta_min=0.0001, beta_max=0.02, init_steps=None, steps=1024, mode='linear'):
+        super().__init__(init_steps=init_steps, steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
 
-        if prev_alpha is not None:
-            prev_steps = len(prev_alpha)
-            ratio = 2 if prev_steps != steps else 1
-            self.alpha = prev_alpha[::ratio]
-        else:
-            self.alpha = torch.cumprod(1 - self.beta, dim=0).sqrt()
+        self.alpha = torch.cumprod(1 - self.beta, dim=0).sqrt()
+
+        while steps != len(self.alpha):
+            if steps > len(self.alpha):
+                raise ValueError("Can't reach the desired number of steps by halving the starting steps")
+
+            self.alpha = self.alpha[::2]
 
         self.sigma = (1 - self. alpha ** 2).sqrt()
 
@@ -31,8 +32,8 @@ class DDIMScheduler(Scheduler):
         a_t, sigma_t, a_t1, sigma_t1 = self.get_params(t, bs, device)
         
         new_x = a_t1 / a_t * (x - sigma_t * noise) + sigma_t1 * noise
-        
         # new_x = new_x - new_x.mean(dim=1, keepdim=True)
+
         return new_x
         
     def denoise(self, x, noise, a_t):
@@ -77,8 +78,8 @@ class DDIMScheduler(Scheduler):
     
 
 class DDIMSparseScheduler(DDIMScheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', prev_alpha=None, pres=1e-5):
-        super().__init__(beta_min, beta_max, steps, mode, prev_alpha=prev_alpha)
+    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', init_steps=1024, pres=1e-5):
+        super().__init__(init_steps=init_steps, steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
         self.pres = pres
 
     def torch2sparse(self, coords, feats=None):
