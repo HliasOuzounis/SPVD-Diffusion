@@ -7,14 +7,21 @@ from .scheduler import Scheduler
 from my_models.modules.sparse_utils import batch_sparse_quantize_torch
 
 class DDPMScheduler(Scheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt'):
-        super().__init__()
+    def __init__(self, beta_min=0.0001, beta_max=0.02, init_steps=None, steps=1024, mode='linear'):
+        super().__init__(init_steps=init_steps, steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
 
-        self.steps = steps
-        self.beta = torch.linspace(beta_min, beta_max, steps, requires_grad=False)
-        self.alpha = 1. - self.beta
-        self.alpha_cumprod = torch.cumprod(self.alpha, dim=0)
-        self.sigma = self.beta.sqrt() # Linear schedule
+        self.ahat = torch.cumprod(1. - self.beta, dim=0)
+
+        while steps != len(self.ahat):
+            if steps > len(self.ahat):
+                raise ValueError("Can't reach the desired number of steps by halving the starting steps")
+
+            self.ahat = self.ahat[::2]
+
+        self.alpha = torch.tensor([self.ahat[0]] + [self.ahat[i] / self.ahat[i - 1] for i in range(1, len(self.ahat))])
+        self.beta = 1 - self.alpha
+        self.sigma = self.beta.sqrt()
+        
 
     def update(self, x, t, noise, shape, stochastic=True):
         bs = shape[0]
@@ -33,12 +40,7 @@ class DDPMScheduler(Scheduler):
         sigma_t = self.sigma[t].reshape(bs, 1, 1).to(device)
         a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
 
-        ahat_t = self.alpha_cumprod[t].reshape(bs, 1, 1).to(device)
-        
-        a_t1_bar = self.alpha_cumprod[t - 1].reshape(bs, 1, 1).to(device)
-        for i, t_i in enumerate(t):
-            if t_i == 0:
-                a_t1_bar[i] = torch.ones_like(a_t1_bar[i])
+        ahat_t = self.ahat[t].reshape(bs, 1, 1).to(device)
         
         x_0 = self.denoise(x, noise, a_t, ahat_t)
         new_x = 1 / a_t.sqrt() * x_0 + sigma_t * epsilon
@@ -57,7 +59,7 @@ class DDPMScheduler(Scheduler):
 
         noise = torch.randn(x0.shape, requires_grad=False)
 
-        a_t_bar = self.alpha_cumprod[t]
+        a_t_bar = self.ahat[t]
 
         return x0 * a_t_bar.sqrt() + noise * (1 - a_t_bar).sqrt(), t, noise
 
@@ -66,20 +68,25 @@ class DDPMScheduler(Scheduler):
 
     def snr_weight(self, t):
         return torch.ones_like(t)
-        t = t.cpu()
-        snr = self.alpha_cumprod[t] / (1 - self.alpha_cumprod[t])
-        return snr 
-        # src: https://arxiv.org/pdf/2303.09556
-        gamma = 5
-        return torch.clamp(gamma / snr, max=1)
-
+    
     def __call__(self, x, t=None):
         return self.add_noise(x, t)
 
+    def get_params(self, t, bs, device):
+        t = t.clamp(0, self.steps - 1)
+        t = t.cpu()
+        
+        a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
+        ahat_t = self.ahat[t].reshape(bs, 1, 1).to(device)
+
+        a_t1 = torch.ones_like(a_t).to(device)
+        a_t1[t != 0] = self.alpha[t[t != 0] - 1].reshape(t[t != 0].shape[0], 1, 1).to(device)
+
+        return a_t, ahat_t,# a_t1
 
 class DDPMSparseScheduler(DDPMScheduler):
-    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', sigma='bt', pres=1e-5):
-        super().__init__(beta_min, beta_max, steps, mode, sigma)
+    def __init__(self, beta_min=0.0001, beta_max=0.02, steps=1024, mode='linear', init_steps=1024, pres=1e-5):
+        super().__init__(init_steps=init_steps, steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
         self.pres = pres
 
     def torch2sparse(self, coords, feats=None):

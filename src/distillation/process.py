@@ -37,7 +37,7 @@ class DistillationProcess(L.LightningModule):
     def training_step(self, batch, batch_idx):
         inp = self.task.prep_data(batch)
         
-        student_preds = self.student(inp)
+        student_preds = self.student.target(inp)
 
         with torch.no_grad():
             target = self.teacher.target(inp)
@@ -45,13 +45,13 @@ class DistillationProcess(L.LightningModule):
         loss = self.task.loss_fn(student_preds, target)
         
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
-        
+            
         return loss
     
     def validation_step(self, batch, batch_idx):
         inp = self.task.prep_data(batch)
 
-        student_preds = self(inp)
+        student_preds = self.student.target(inp)
 
         with torch.no_grad():
             target = self.teacher.target(inp)

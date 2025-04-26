@@ -73,3 +73,7 @@ class Scheduler(ABC):
     @abstractmethod
     def create_noise(self, shape, device):
         pass
+
+    @abstractmethod
+    def get_params(self, t, bs, device):
+        pass
