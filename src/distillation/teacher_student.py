@@ -4,8 +4,7 @@ import torch.nn.functional as F
 
 from models.ddpm_unet_cattn import SPVUnet
 # from my_models.spvd import SPVUnet
-from my_schedulers.ddpm_scheduler import DDPMSparseScheduler
-from my_schedulers.ddim_scheduler import DDIMSparseScheduler
+from my_schedulers import DDPMSparseScheduler, DDIMSparseScheduler
 
 import lightning as L
 
@@ -53,12 +52,21 @@ class Teacher(nn.Module):
         device = x_t.F.device
         
         scaled_t = t * 2
-
         x_t1 = self.diffusion_scheduler.sample_step(self.model, x_t, scaled_t, shape=shape, device=device, reference=reference, stochastic=False)
         x_t2 = self.diffusion_scheduler.sample_step(self.model, x_t1, scaled_t - 1, shape=shape, device=device, reference=reference, stochastic=False)
-        
+
         x_t2 = x_t2.F.reshape(shape)
-        return x_t2
+        x_t = x_t.F.reshape(shape)
+
+        if self.type == 'ddpm':    
+            target = x_t2
+        else:
+            a_t, sigma_t, _, _ = self.diffusion_scheduler.get_params(t, bs, device)
+            _, _, a_t2, sigma_t2 = self.diffusion_scheduler.get_params(t - 1, bs, device)
+            
+            target = (x_t2 - a_t2 / a_t * x_t) / (sigma_t2 - a_t2 / a_t * sigma_t)
+        
+        return target
 
 
 class Student(nn.Module):
@@ -76,15 +84,6 @@ class Student(nn.Module):
             else DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
         )
         self.type = scheduler
-
-        scale = 1e-3
-        self.perturb_weights(scale)
-
-
-    def perturb_weights(self, scale):
-        for param in self.parameters():
-            if param.requires_grad:
-                param.data += torch.randn_like(param) * scale
         
 
     def forward(self, inp):
@@ -106,7 +105,11 @@ class Student(nn.Module):
         shape = (bs, xt.F.shape[0] // bs, xt.F.shape[1])
         device = xt.F.device
 
-        x_t1 = self.diffusion_scheduler.sample_step(self.model, xt, t, shape=shape, device=device, reference=reference, stochastic=False)
+        if self.type == 'ddpm':
+            x_t1 = self.diffusion_scheduler.sample_step(self.model, xt, t, shape=shape, device=device, reference=reference, stochastic=False)
+            target = x_t1.F.reshape(shape)
+        else:
+            noise = self.model((xt, t, reference))
+            target = noise.reshape(shape)
 
-        x_t1 = x_t1.F.reshape(shape)
-        return x_t1
+        return target
