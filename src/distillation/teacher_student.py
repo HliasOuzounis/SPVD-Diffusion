@@ -61,8 +61,8 @@ class Teacher(nn.Module):
         if self.type == 'ddpm':    
             target = x_t2
         else:
-            a_t, sigma_t, _, _ = self.diffusion_scheduler.get_params(t, bs, device)
-            _, _, a_t2, sigma_t2 = self.diffusion_scheduler.get_params(t - 1, bs, device)
+            a_t, sigma_t, _, _ = self.diffusion_scheduler.get_params(scaled_t, bs, device)
+            _, _, a_t2, sigma_t2 = self.diffusion_scheduler.get_params(scaled_t - 1, bs, device)
             
             target = (x_t2 - a_t2 / a_t * x_t) / (sigma_t2 - a_t2 / a_t * sigma_t)
         
