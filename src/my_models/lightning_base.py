@@ -28,7 +28,6 @@ class SparseGeneration(Task):
         return (snr * (preds - target).pow(2)).mean()
 
 class DiffusionBase(L.LightningModule):
-
     def __init__(self, model, task=SparseGeneration(), lr=0.0002):
         super().__init__()
         self.model = model

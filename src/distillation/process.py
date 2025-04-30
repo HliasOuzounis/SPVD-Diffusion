@@ -35,7 +35,12 @@ class DistillationProcess(L.LightningModule):
         return self.student(x)
     
     def training_step(self, batch, batch_idx):
-        inp = self.task.prep_data(batch)
+        x, t, reference = self.task.prep_data(batch)
+
+        if torch.rand(1).item() < 0.1:
+            reference = None
+        inp = (x, t, reference)
+
         
         student_preds = self.student.target(inp)
 
