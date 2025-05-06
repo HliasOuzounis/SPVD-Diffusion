@@ -23,7 +23,6 @@ class Teacher(nn.Module):
             if scheduler == 'ddpm'
             else DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
         )
-    
         # Freeze the model parameters
         self.freeze()
 
@@ -52,7 +51,7 @@ class Teacher(nn.Module):
         device = x_t.F.device
         
         scaled_t = t * 2
-        x_t1 = self.diffusion_scheduler.sample_step(self.model, x_t, scaled_t, shape=shape, device=device, reference=reference, stochastic=False)
+        x_t1 = self.diffusion_scheduler.sample_step(self.model, x_t, scaled_t, shape=shape, device=device, reference=reference, stochastic=True)
         x_t2 = self.diffusion_scheduler.sample_step(self.model, x_t1, scaled_t - 1, shape=shape, device=device, reference=reference, stochastic=False)
 
         x_t2 = x_t2.F.reshape(shape)
@@ -61,8 +60,8 @@ class Teacher(nn.Module):
         if self.type == 'ddpm':    
             target = x_t2
         else:
-            a_t, sigma_t, _, _ = self.diffusion_scheduler.get_params(scaled_t, bs, device)
-            _, _, a_t2, sigma_t2 = self.diffusion_scheduler.get_params(scaled_t - 1, bs, device)
+            a_t, sigma_t = self.diffusion_scheduler.get_params(scaled_t, bs, device)
+            a_t2, sigma_t2 = self.diffusion_scheduler.get_params(scaled_t - 2, bs, device)
             
             target = (x_t2 - a_t2 / a_t * x_t) / (sigma_t2 - a_t2 / a_t * sigma_t)
         

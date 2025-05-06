@@ -1,6 +1,6 @@
 import os
 import trimesh
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import zipfile
 
 import numpy as np

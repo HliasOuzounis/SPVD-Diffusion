@@ -1,5 +1,6 @@
 import k3d
 import numpy as np
+import matplotlib.pyplot as plt
 
 def display_pointclouds_grid(pointclouds, offset=8.0, point_size=0.2, grid_dims=None):
     """
@@ -63,24 +64,33 @@ def display_pointclouds_grid(pointclouds, offset=8.0, point_size=0.2, grid_dims=
     plot.display()
 
 
-def plot_renders(batch, grid=(8, 4)):
-    import matplotlib.pyplot as plt
+def display_renders_grid(images, grid_dims=None):
+    """
+    Plot a grid of images using matplotlib.
+
+    Args:
+        images: A batch of images (numpy array of numpy arrays) in (N, H, W, C) format.
+        grid_dims: Tuple (rows, cols) specifying the grid dimensions.
+        figsize: Tuple specifying the figure size.
+    """
+    if len(images) == 0:
+        raise ValueError("At least one image must be provided")
+
+    if grid_dims is None:
+        grid_cols = int(np.ceil(np.sqrt(len(images))))
+        grid_rows = int(np.ceil(len(images) / grid_cols))
+    else:
+        grid_rows, grid_cols = grid_dims
     
-    print(batch.shape)
-    fig, axes = plt.subplots(grid[0], grid[1], figsize=(grid[1] * 2, grid[0] * 2))
-    batch = batch.detach().cpu().clone()
-    k = 0
-    for i in range(grid[0]):
-        for j in range(grid[1]):
-            if k >= batch.shape[0]:
-                axes[i, j].axis('off')
-                continue
-            
-            img = batch[k].permute(1, 2, 0)  # assuming batch is in (N, C, H, W) format
+    fig, axes = plt.subplots(grid_cols, grid_rows, figsize=(12, 12))
+    images = iter(images)
+
+    for i in range(grid_cols):
+        for j in range(grid_rows):
+            img = next(images)
             axes[i, j].imshow(img)
             axes[i, j].axis('off')
-            
-            k += 1
+            axes[i, j].axis('off')
     
     plt.tight_layout()
     plt.show()

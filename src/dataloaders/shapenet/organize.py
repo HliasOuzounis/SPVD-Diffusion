@@ -1,5 +1,5 @@
 import os
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 parent_path = "data/ShapeNet"
 for category in tqdm(os.listdir(os.path.join(parent_path, "pointclouds"))):

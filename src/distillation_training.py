@@ -28,7 +28,7 @@ def distillation_init():
 def main():
     distillation_agent = distillation_init()
 
-    categories = ['chair']
+    categories = ['bowl']
     path = "../data/ShapeNet"
     tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps)
     

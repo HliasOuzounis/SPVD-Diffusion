@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.layers import DropPath
+# from timm.models.layers import DropPath
 from torch_geometric.utils import to_dense_batch
 
 from ..utils import masked_softmax
@@ -113,7 +113,8 @@ class TransformerBlock(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
 
         # NOTE: Should test if this is better than dropout
-        self.drop_path = DropPath(drop_path) if drop_path >0. else nn.Identity()
+        # self.drop_path = DropPath(drop_path) if drop_path >0. else nn.Identity()
+        self.drop_path = nn.Identity()
 
         # ATTENTION BLOCK
         self.norm1 = norm_layer(dim)
