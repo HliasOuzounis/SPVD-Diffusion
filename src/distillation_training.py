@@ -44,8 +44,7 @@ def main():
     }
     
     scheduler = "ddpm"
-    # epochs = iter((1000, 1000, 1000, 1500, 1500, 1500, 2000, 2000, 2000, 2000))
-    epochs = iter((1, 1, 1, 1, 1, 1, 1, 1, 1, 1))
+    epochs = iter((1000, 1000, 1000, 1500, 1500, 1500, 2000, 2000, 2000, 2000))
     #3epochs for   500,  250,  125,   63.   32,   16,    8,    4,   2,   1    steps
     
     N = diffusion_steps
@@ -81,7 +80,7 @@ def main():
         folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
-        # torch.save(distillation_agent.student.state_dict(), new_checkpoint)
+        torch.save(distillation_agent.student.state_dict(), new_checkpoint)
         
         previous_checkpoint = new_checkpoint
 
