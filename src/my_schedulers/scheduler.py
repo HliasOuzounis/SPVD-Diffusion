@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 class Scheduler(ABC):
     def __init__(self, init_steps: int|None = None, steps: int = 1000, beta_min: float = 0.0001, beta_max: float = 0.02, mode: str = 'linear'):

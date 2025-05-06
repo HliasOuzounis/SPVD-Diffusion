@@ -8,7 +8,7 @@ from numpy.linalg import norm
 from metrics.PyTorchEMD.emd import earth_mover_distance as EMD
 from metrics.chamfer_dist import ChamferFunction
 from metrics.fscore import fscore
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 def cham3D(sample, ref):
     dist1, dist2 = ChamferFunction.apply(sample, ref)

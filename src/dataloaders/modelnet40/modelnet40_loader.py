@@ -10,7 +10,7 @@ import numpy as np
 
 from typing import Any
 import os
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from my_schedulers.ddpm_scheduler import DDPMScheduler
 
