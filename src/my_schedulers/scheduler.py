@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import torch
-from tqdm.auto import tqdm
+from tqdm import tqdm
 
 class Scheduler(ABC):
     def __init__(self, init_steps: int|None = None, steps: int = 1000, beta_min: float = 0.0001, beta_max: float = 0.02, mode: str = 'linear'):
@@ -14,19 +14,11 @@ class Scheduler(ABC):
 
         if init_steps is None:
             init_steps = steps
-        
-        if mode == 'linear':
-            self.beta = torch.linspace(beta_min, beta_max, init_steps)
-        elif mode == 'warm0.1':
-            warmup_time = int(0.1 * init_steps)
-            self.beta = beta_max * torch.ones(init_steps)
-            self.beta[:warmup_time] = torch.linspace(beta_min, beta_max, warmup_time)
-        else:
-            raise NotImplementedError(f"Scheduler mode {mode} not implemented")
 
+        self.beta = torch.linspace(beta_min, beta_max, init_steps)
         self.t_steps = list(reversed(range(steps))) 
 
-    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda', progress_bar=True):
+    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda'):
         """
         Args:
             model: The model to sample from
@@ -43,8 +35,7 @@ class Scheduler(ABC):
             assert len(reference) == num_samples, "Reference image batch size must match the number of samples"
         
         with torch.no_grad():
-            t_steps = tqdm(self.t_steps, desc="Sampling", leave=False) if progress_bar else self.t_steps
-            for t in t_steps:
+            for t in tqdm(self.t_steps, desc="Sampling"):
                 x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic)
         
         x_t = self.post_process(x_t)
