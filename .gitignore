@@ -10,3 +10,5 @@ dependencies/
 
 **__pycache__/
 **.ipynb_checkpoints/
+
+output.log
