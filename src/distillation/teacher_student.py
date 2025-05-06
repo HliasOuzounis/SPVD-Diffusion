@@ -9,7 +9,7 @@ from my_schedulers import DDPMSparseScheduler, DDIMSparseScheduler
 import lightning as L
 
 class Teacher(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler='ddpm'):
+    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler_args, scheduler='ddpm'):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
@@ -19,9 +19,9 @@ class Teacher(nn.Module):
         
         self.type = scheduler
         self.diffusion_scheduler = (
-            DDPMSparseScheduler(steps=diffusion_steps, init_steps=1000) 
+            DDPMSparseScheduler(steps=diffusion_steps, **scheduler_args) 
             if scheduler == 'ddpm'
-            else DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
+            else DDIMSparseScheduler(steps=diffusion_steps, **scheduler_args)
         )
         # Freeze the model parameters
         self.freeze()
@@ -69,7 +69,7 @@ class Teacher(nn.Module):
 
 
 class Student(nn.Module):
-    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler='ddpm'):
+    def __init__(self, model_params, model_ckpt, diffusion_steps, scheduler_args, scheduler='ddpm'):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
@@ -78,9 +78,9 @@ class Student(nn.Module):
         self.load_state_dict(weights)
         
         self.diffusion_scheduler = (
-            DDPMSparseScheduler(steps=diffusion_steps, init_steps=1000) 
+            DDPMSparseScheduler(steps=diffusion_steps, **scheduler_args) 
             if scheduler == 'ddpm'
-            else DDIMSparseScheduler(steps=diffusion_steps, init_steps=1000)
+            else DDIMSparseScheduler(steps=diffusion_steps, **scheduler_args)
         )
         self.type = scheduler
         
