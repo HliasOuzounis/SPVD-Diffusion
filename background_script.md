@@ -7,12 +7,12 @@ conda install scikit-learn
 
 ## Using `nohup` command
 ```bash
-nohup python your_script.py > output.log 2>&1 &
+nohup python distillation_training.py > output.log 2>&1 &
 ```
 - `nohup` allows the script to continue running even after the terminal is closed.
 
 ## Killing the script
 ```bash
-ps aux | grep your_script.py
+ps aux | grep distillation_training.py
 kill -9 <PID>
 ```
