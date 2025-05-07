@@ -45,7 +45,7 @@ class DDPMScheduler(Scheduler):
         x_0 = self.denoise(x, noise, a_t, ahat_t)
         new_x = 1 / a_t.sqrt() * x_0 + sigma_t * epsilon
 
-        new_x = new_x - new_x.mean(dim=1, keepdim=True)
+        # new_x = new_x - new_x.mean(dim=1, keepdim=True)
 
         return new_x
 

@@ -2,6 +2,7 @@ lightning_logs/
 .ipynb_checkpoints/
 *.pyc
 *.ckpt
+*.pt
 
 checkpoints/
 logs/
