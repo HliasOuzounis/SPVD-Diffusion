@@ -40,7 +40,6 @@ class DistillationProcess(L.LightningModule):
         if torch.rand(1).item() < 0.1:
             reference = None
         inp = (x, t, reference)
-
         
         student_preds = self.student.target(inp)
 

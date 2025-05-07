@@ -35,7 +35,7 @@ class Scheduler(ABC):
             assert len(reference) == num_samples, "Reference image batch size must match the number of samples"
         
         with torch.no_grad():
-            for t in tqdm(self.t_steps, desc="Sampling"):
+            for t in tqdm(self.t_steps, desc="Sampling", leave=False):
                 x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic)
         
         x_t = self.post_process(x_t)
