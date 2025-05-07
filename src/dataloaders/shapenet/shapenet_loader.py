@@ -70,10 +70,10 @@ class ShapeNet(Dataset):
         
         self.pointclouds = np.array(self.pointclouds)
         # Normalize and standardize the pointclouds
-        mean = np.mean(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
-        std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
+        self.mean = np.mean(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
+        self.std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
 
-        self.pointclouds = (self.pointclouds - mean) / std
+        self.pointclouds = (self.pointclouds - self.mean) / self.std
 
     def class_weight(self, category: str) -> float:
         return self.class_sizes[category] / len(self.pointclouds)
