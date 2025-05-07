@@ -11,6 +11,11 @@ nohup python distillation_training.py > output.log 2>&1 &
 ```
 - `nohup` allows the script to continue running even after the terminal is closed.
 
+## Monitoring the script
+```bash
+cat output.log | grep "steps"
+```
+
 ## Killing the script
 ```bash
 ps aux | grep distillation_training.py

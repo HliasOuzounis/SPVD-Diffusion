@@ -66,6 +66,13 @@ def main():
         except StopIteration:
             print("All distillation steps completed.")
             break
+
+        # checkpoint_callback = L.callbacks.ModelCheckpoint(
+        #     dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intermediate/{N}-steps",
+        #     filename=f"{N}-steps-{{epoch:02d}}",
+        #     save_top_k=-1,
+        #     every_n_epochs=50,
+        # )
         
         trainer = L.Trainer(
             max_epochs=max_epochs, 
