@@ -36,7 +36,7 @@ class DDIMScheduler(Scheduler):
             a_t1, sigma_t1 = self.get_params(t - self.step_size, bs, device)
         
         new_x = a_t1 / a_t * (x - sigma_t * noise) + sigma_t1 * noise
-        new_x = new_x - new_x.mean(dim=1, keepdim=True)
+        # new_x = new_x - new_x.mean(dim=1, keepdim=True)
 
         return new_x
         

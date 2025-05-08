@@ -45,6 +45,8 @@ def main():
     
     scheduler = "ddpm"
     epochs = iter((1000, 1000, 1000, 1500, 1500, 1500, 2000, 2000, 2000, 2000))
+    # epochs = iter((100, 100, 100, 150, 150))
+    epochs = iter((500, 500))
     # epochs for   500,  250,  125,   63.   32,   16,    8,    4,   2,   1    steps
     
     N = diffusion_steps
