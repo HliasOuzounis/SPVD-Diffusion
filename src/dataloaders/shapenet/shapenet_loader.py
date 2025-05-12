@@ -47,7 +47,7 @@ class ShapeNet(Dataset):
             desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
             c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
-                if c > 1500:
+                if c > 2500:
                     continue
                 c += 1
                 
@@ -69,7 +69,7 @@ class ShapeNet(Dataset):
                     self.render_features.append(render_features)
         
         self.pointclouds = np.array(self.pointclouds)
-        # Normalize and standardize the pointclouds
+        
         self.mean = np.mean(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
         self.std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
 

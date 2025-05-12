@@ -170,13 +170,25 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size):
     # 1-NN results
     one_nn_cd_res = knn(M_rr_cd, M_rs_cd, M_ss_cd, 1, sqrt=False)
     results.update({
-        "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
+        "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if "acc" in k
     })
     one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
     results.update({
-        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
+        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if "acc" in k
     })
+    
+    # f1_cd = 2 * one_nn_cd_res['precision'] * one_nn_cd_res['recall'] / (one_nn_cd_res['precision'] + one_nn_cd_res['recall'])
+    # f1_emd = 2 * one_nn_emd_res['precision'] * one_nn_emd_res['recall'] / (one_nn_emd_res['precision'] + one_nn_emd_res['recall'])
+    # results.update({
+    #     "1-NN-CD-f1": f1_cd,
+    #     "1-NN-EMD-f1": f1_emd
+    # })
 
+    results.update({
+        "CD-mean": M_rs_cd.diagonal().mean(), # Pairwise mean
+        "EMD-mean": M_rs_emd.diagonal().mean(), # Pairwise mean
+    })
+    
     return results
 
 

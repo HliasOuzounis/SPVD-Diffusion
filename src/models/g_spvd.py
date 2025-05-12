@@ -17,7 +17,7 @@ class GSPVD(L.LightningModule):
     
     def shared_step(self, batch):
         # Get the input and target of the batch
-        xt, t, cond_emb = (batch['xt'], batch['t'], batch['vit_emb']) # Input
+        xt, t, cond_emb = (batch['input'], batch['t'], batch['render-features']) # Input
         target = batch['noise'].F if isinstance(batch['noise'], SparseTensor) else batch['noise'] # Target 
         
         B = len(t)

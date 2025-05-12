@@ -2,6 +2,8 @@
 
 ## Metrics
 
+Check unconditional
+
 ### Types
 
 - Chamfer Distance (CD)
@@ -18,7 +20,7 @@
 
 - Jensen-Shannon Divergence (JSD) ↓
 
-- F1 Score ↑
+<!-- - F1 Score with τ ↑ -->
 
 ## Options
 
@@ -32,9 +34,16 @@
 - `none`
 - `unit_sphere`
 
+Dataset με translations.
+Translation κακό σε guided γιατί εξαρτάται από την εικόνα, πρέπει να πετύχω το translation.
+
+Δοκιμάζω unguided σε translated και normalized.
+Συγκρίνω το guided με normalized. Έχω το distribution σε εικόνες, προσπαθώ να πετύχω το ίδιο distribution σε 3D.
+
 ### Steps
 
-`1000 | 500 | 250 | 125 | 63 | 32 | 16 | 8 | 4 | 2 | 1`
+`1000 | 500 | 250 | 125 | 63`
+<!-- | 32 | 16 | 8 | 4 | 2 | 1` -->
 
 ### Training
 
