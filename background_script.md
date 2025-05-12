@@ -26,3 +26,9 @@ cat output.log | grep "steps"
 ps aux | grep distillation_training.py
 kill -9 <PID>
 ```
+
+or
+
+```bash
+pkill -f distillation_training.py
+```
