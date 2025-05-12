@@ -1,9 +1,10 @@
 # TODO
 
-## Training
+## Questions
 
-Training set is :10000, Testing is 10000:?
-What sample size?
+- Pre trained good unconditional?
+
+## Training
 
 Train on higher unconditional %
 
