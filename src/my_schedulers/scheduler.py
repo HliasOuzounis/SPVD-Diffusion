@@ -15,7 +15,17 @@ class Scheduler(ABC):
         if init_steps is None:
             init_steps = steps
 
-        self.beta = torch.linspace(beta_min, beta_max, init_steps)
+        if mode == 'linear':
+            self.beta = torch.linspace(beta_min, beta_max, init_steps)
+        elif mode == "warm0.1":
+            self.beta = beta_max * torch.ones(init_steps)
+            warmup_time = int(0.1 * init_steps)
+            self.beta[:warmup_time] = torch.linspace(
+                beta_min, beta_max, warmup_time
+            )
+        else:
+            raise NotImplementedError(f"Scheduler mode {mode} not implemented") 
+
         self.t_steps = list(reversed(range(steps))) 
 
     def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda'):

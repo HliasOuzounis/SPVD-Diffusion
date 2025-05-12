@@ -17,7 +17,7 @@ def distillation_init():
     return distillation_agent
 
 def main():
-    categories = ['car']
+    categories = ['airplane']
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
