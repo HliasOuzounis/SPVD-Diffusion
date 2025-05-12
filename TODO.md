@@ -3,6 +3,13 @@
 ## Questions
 
 - Pre trained good unconditional?
+- DDIM skip steps is almost same as distillation. What do?
+  - Ideas why it could be better
+    - Can use distilled network with DDPM. (Only time embedding matters)
+    - Distilled network learns to generate more details. Details are only added in the later steps, so skipping them might lead to worse results. On the other hand, distillation can capture the details and move them to an earlier step.
+  - Pray that metrics are better for distillation.
+  - Train on waaaay less epochs (100, 200) and see.
+- What if results from other methods are better?
 
 ## Training
 
