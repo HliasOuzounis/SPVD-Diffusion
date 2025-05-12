@@ -47,7 +47,7 @@ class ShapeNet(Dataset):
             desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
             c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
-                if c > 2500:
+                if c > 1500:
                     continue
                 c += 1
                 

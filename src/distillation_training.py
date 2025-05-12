@@ -45,13 +45,15 @@ def main():
     
     scheduler = "ddim"
     epochs = iter((1000, 1000, 1000, 1000))
+    # epochs = iter((100, 100, 100, 150, 150))
     # epochs for   500,  250,  125,   63.   32,   16,    8,    4,   2,   1    steps
     
-    N = 500
+    N = diffusion_steps
+    # N = 63 # Steps from previous distillation
     previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}/{N}-steps.ckpt"
 
     distillation_agent = distillation_init()
-    
+
     while N > 0:
         distillation_agent.set_teacher(Teacher(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
 
@@ -71,7 +73,7 @@ def main():
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
             dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intermediate/{N}-steps",
-            filename=f"{N}-steps-{{epoch:02d}}",
+            filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
             every_n_epochs=50,
         )

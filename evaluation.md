@@ -81,7 +81,6 @@ Perhaps, also train a nn from scratch for same epochs and compare results.
 | 1000 | 55.0 | 49.3 | 0.028 | (5 batches) |
 | 1000 | 63.4 | 56.3 | 0.012 | all |
 
-
 ### Chair
 
 #### No normalization (ddpm)
