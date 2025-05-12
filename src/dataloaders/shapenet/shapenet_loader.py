@@ -19,7 +19,7 @@ from .shapenet_utils import synsetid_to_category, category_to_synsetid
 
 
 class ShapeNet(Dataset):
-    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True) -> None:
+    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, total: int=2500) -> None:
         assert split in ["train", "test", "val"], "split should be either 'train' or 'test' or 'val'"
         self.split = split
         
@@ -28,6 +28,8 @@ class ShapeNet(Dataset):
 
         self.categories = [category_to_synsetid[cat] for cat in categories] if categories is not None else []
         self.load_renders = load_renders
+
+        self.total = total
         
         self.load_data(self.path)
     
@@ -47,7 +49,7 @@ class ShapeNet(Dataset):
             desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
             c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
-                if c > 2500:
+                if c > self.total:
                     continue
                 c += 1
                 
@@ -113,8 +115,8 @@ class ShapeNet(Dataset):
 
 
 class ShapeNetSparse(ShapeNet):
-    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, n_steps=1024) -> None:
-        super().__init__(path, split, sample_size, categories, load_renders)
+    def __init__(self, path: str | None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, n_steps=1024, total: int=2500) -> None:
+        super().__init__(path, split, sample_size, categories, load_renders, total)
         
         self.set_voxel_size()
         self.set_scheduler(DDIMScheduler(steps=n_steps))
