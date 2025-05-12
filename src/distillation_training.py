@@ -17,7 +17,7 @@ def distillation_init():
     return distillation_agent
 
 def main():
-    categories = ['chair']
+    categories = ['car']
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
@@ -43,14 +43,12 @@ def main():
         'mode': hparams['mode'],
     }
     
-    scheduler = "ddpm"
-    epochs = iter((1000, 1000, 1000, 1500, 1500, 1500, 2000, 2000, 2000, 2000))
-    # epochs = iter((100, 100, 100, 150, 150))
-    epochs = iter((500, 500))
+    scheduler = "ddim"
+    epochs = iter((1000, 1000, 1000, 1000))
     # epochs for   500,  250,  125,   63.   32,   16,    8,    4,   2,   1    steps
     
-    N = diffusion_steps
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{N}-steps.ckpt"
+    N = 500
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}/{N}-steps.ckpt"
 
     distillation_agent = distillation_init()
     
@@ -62,6 +60,8 @@ def main():
         tr.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
         te.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
         val.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
+        
+        distillation_agent.validate()
 
         try:
             max_epochs = next(epochs)
@@ -69,16 +69,16 @@ def main():
             print("All distillation steps completed.")
             break
 
-        # checkpoint_callback = L.callbacks.ModelCheckpoint(
-        #     dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intermediate/{N}-steps",
-        #     filename=f"{N}-steps-{{epoch:02d}}",
-        #     save_top_k=-1,
-        #     every_n_epochs=50,
-        # )
+        checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intermediate/{N}-steps",
+            filename=f"{N}-steps-{{epoch:02d}}",
+            save_top_k=-1,
+            every_n_epochs=50,
+        )
         
         trainer = L.Trainer(
             max_epochs=max_epochs, 
-            callbacks=[],
+            callbacks=[checkpoint_callback],
             gradient_clip_val=10.0,
         )
         
@@ -86,7 +86,7 @@ def main():
         trainer.fit(distillation_agent, tr, val)
         print(f"Trained Student for {N} steps.")
 
-        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}"
+        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
         torch.save(distillation_agent.student.state_dict(), new_checkpoint)

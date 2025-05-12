@@ -24,7 +24,14 @@ class DistillationProcess(L.LightningModule):
 
         self.teacher = None
         self.student = None
-    
+
+    def validate(self):
+        if self.teacher is None or self.student is None:
+            raise ValueError("Teacher and Student models must be set before validation.")
+        if self.teacher.type != self.student.type:
+            raise ValueError("Teacher and Student models must have the same scheduler.")
+        self.check_initialization()
+
     def set_teacher(self, teacher):
         self.teacher = teacher
         
@@ -42,10 +49,12 @@ class DistillationProcess(L.LightningModule):
         inp = (x, t, reference)
         
         student_preds = self.student.target(inp)
-
+        assert torch.isnan(student_preds).sum() == 0, "Student contains NaN values" 
+            
         with torch.no_grad():
             target = self.teacher.target(inp)
-        
+            assert torch.isnan(target).sum() == 0, f"Target contains NaN values {inp[1]}" 
+    
         loss = self.task.loss_fn(student_preds, target)
         
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
@@ -56,10 +65,11 @@ class DistillationProcess(L.LightningModule):
         inp = self.task.prep_data(batch)
 
         student_preds = self.student.target(inp)
-
+            
         with torch.no_grad():
             target = self.teacher.target(inp)
-        
+            assert torch.isnan(target).sum() == 0, f"Target contains NaN values {inp[1]}" 
+            
         loss = self.task.loss_fn(student_preds, target)
         
         self.log('val_loss', loss, on_epoch=True, prog_bar=True, batch_size=len(batch))
@@ -89,5 +99,8 @@ class DistillationProcess(L.LightningModule):
     def check_initialization(self):
         steps = self.student.diffusion_scheduler.steps
         for i in range(steps):
-            assert self.student.diffusion_scheduler.alpha[i] == self.teacher.diffusion_scheduler.alpha[2*i], f"Alpha mismatch at step {i}"
+            if self.student.type == "ddim":
+                assert self.student.diffusion_scheduler.alpha[i] == self.teacher.diffusion_scheduler.alpha[2*i], f"Alpha mismatch at step {i}"
+            elif self.student.type == "ddpm":
+                assert self.student.diffusion_scheduler.ahat[i] == self.teacher.diffusion_scheduler.ahat[i], f"Alpha hat mismatch at step {i}"
         print(f"Initialization check passed for {steps} steps.")

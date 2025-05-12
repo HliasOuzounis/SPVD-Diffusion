@@ -33,9 +33,9 @@ class DDIMScheduler(Scheduler):
         a_t, sigma_t = self.get_params(t, bs, device)
 
         if self.step_size is not None:
-            a_t1, sigma_t1 = self.get_params(t - self.step_size, bs, device)
+            a_ti, sigma_ti = self.get_params(t - self.step_size, bs, device)
         
-        new_x = a_t1 / a_t * (x - sigma_t * noise) + sigma_t1 * noise
+        new_x = a_ti / a_t * (x - sigma_t * noise) + sigma_ti * noise
         # new_x = new_x - new_x.mean(dim=1, keepdim=True)
 
         return new_x
@@ -71,14 +71,7 @@ class DDIMScheduler(Scheduler):
         a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
         sigma_t = self.sigma[t].reshape(bs, 1, 1).to(device)
 
-        # t_not_zeros = (t[t != 0]).shape[0]
-
-        # a_t1 = torch.ones_like(a_t).to(device)
-        # a_t1[t != 0] = self.alpha[t[t != 0] - 1].reshape(t_not_zeros, 1, 1).to(device)
-        # sigma_t1 = torch.zeros_like(sigma_t).to(device)
-        # sigma_t1[t != 0] = self.sigma[t[t != 0] - 1].reshape(t_not_zeros, 1, 1).to(device)
-
-        return a_t, sigma_t#, a_t1, sigma_t1
+        return a_t, sigma_t
     
 
 class DDIMSparseScheduler(DDIMScheduler):
