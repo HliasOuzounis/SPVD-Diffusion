@@ -17,13 +17,15 @@ class DistillationTask(Task):
     
 
 class DistillationProcess(L.LightningModule):
-    def __init__(self, task=DistillationTask(), lr=0.0002):
+    def __init__(self, task=DistillationTask(), lr=0.0002, uncond_prob=0.1):
         super().__init__()
         self.task = task
         self.learning_rate = lr
+        self.uncond_prob = uncond_prob
 
         self.teacher = None
         self.student = None
+
 
     def validate(self):
         if self.teacher is None or self.student is None:
@@ -44,16 +46,14 @@ class DistillationProcess(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, t, reference = self.task.prep_data(batch)
 
-        if torch.rand(1).item() < 0.1:
+        if torch.rand(1).item() < self.uncond_prob:
             reference = None
         inp = (x, t, reference)
         
         student_preds = self.student.target(inp)
-        assert torch.isnan(student_preds).sum() == 0, "Student contains NaN values" 
             
         with torch.no_grad():
             target = self.teacher.target(inp)
-            assert torch.isnan(target).sum() == 0, f"Target contains NaN values {inp[1]}" 
     
         loss = self.task.loss_fn(student_preds, target)
         

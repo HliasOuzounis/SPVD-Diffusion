@@ -17,14 +17,14 @@ def distillation_init():
     return distillation_agent
 
 def main():
-    categories = ['airplane']
+    categories = ['chair']
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
     
     diffusion_steps = hparams['n_steps']
     path = "../data/ShapeNet"
-    tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps)
+    tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps, total=2000)
 
     model_args = {
         'voxel_size' : hparams['voxel_size'],
@@ -45,9 +45,11 @@ def main():
     
     scheduler = "ddim"
     epochs = iter((1000, 1000, 1000, 1000, 1000, 1000))
+    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000))
     # epochs for   500, 250, 125,  63.  32,  16,   8,   4,  2,  1    steps
     
     N = diffusion_steps
+    # N = 63 # Steps from previous distillation
     # N = 63 # Steps from previous distillation
     previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}/{N}-steps.ckpt"
 
