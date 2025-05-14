@@ -13,6 +13,7 @@
     - Can use distilled network with DDPM.
     - Distilled network learns to generate more details. Details are only added in the later steps, so skipping them might lead to worse results. On the other hand, distillation can capture the details and move them to an earlier step.
   - Pray that metrics are better for distillation.
+  - Train on less epochs (500) and see. (200 not that good for chair)
 - What if results from other methods are better?
 
 ## Training

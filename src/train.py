@@ -14,14 +14,14 @@ from utils.hyperparams import load_hyperparams
 torch.set_float32_matmul_precision('medium')
 
 def main():
-    categories = ['chair']
+    categories = ['airplane']
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
 
-    diffusion_steps = 500
+    diffusion_steps = 250
     path = "../data/ShapeNet"
-    tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps)
+    tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps, total=2000)
 
     model_args = {
         'voxel_size' : hparams['voxel_size'],
