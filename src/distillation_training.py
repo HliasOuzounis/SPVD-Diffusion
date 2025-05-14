@@ -44,7 +44,7 @@ def main():
     }
     
     scheduler = "ddim"
-    epochs = iter((200, 200, 200, 200, 200, 200))
+    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000))
     # epochs for   500, 250, 125,  63.  32,  16,   8,   4,  2,  1    steps
     
     N = diffusion_steps

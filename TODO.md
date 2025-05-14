@@ -1,5 +1,9 @@
 # TODO
 
+Μιχαλάκσης
+Παπούλιας
+
+
 ## Questions
 
 - Pre trained good unconditional?
@@ -37,4 +41,3 @@ Compare F1 score (τ=0.01) with SOTA. (normalized or standardized)
 Distillation better than training from scratch and DDIM skip steps. (At least for lower step count)
 Conditional generation good.
 
-Display a pointcloud with the generated samples for each step count. Same input noise/reference image.
