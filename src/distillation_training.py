@@ -17,7 +17,7 @@ def distillation_init():
     return distillation_agent
 
 def main():
-    categories = ['car']
+    categories = ['airplane']
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
@@ -48,7 +48,7 @@ def main():
     # epochs for   500, 250, 125,  63.  32,  16,   8,   4,  2,  1    steps
     
     N = diffusion_steps
-    N = 63 # Steps from previous distillation
+    # N = 63 # Steps from previous distillation
     previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}/{N}-steps.ckpt"
 
     distillation_agent = distillation_init()
