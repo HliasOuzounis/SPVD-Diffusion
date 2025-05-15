@@ -115,7 +115,7 @@ def save_results(results, categories: list[str], steps: int, scheduler: str, dis
     if distilled:
         folder = f'../metrics/{"-".join(categories)}/{scheduler}/distilled/'
     elif step_size > 1 and scheduler == 'ddim':
-        folder = f'../metrics/{"-".join(categories)}/{scheduler}/skip-{step_size}/'
+        folder = f'../metrics/{"-".join(categories)}/{scheduler}/skip/'
         step_size = ceil(steps / step_size)
     else:
         folder = f'../metrics/{"-".join(categories)}/{scheduler}/retrained/'
@@ -159,12 +159,15 @@ def normalize_to_unit_sphere(batched_points: torch.Tensor, eps: float = 1e-8) ->
 
 def main():
     ## Hyperparameters
-    on_all = False
+    on_all = True
     scheduler = 'ddim'
-    distilled = True
+    distilled = False
     conditional = True
+    steps_to_run = [1000, 500, 250, 125, 63, 32, 16, 8, 4, 2, 1]
 
-    testing = True
+    print(f"Running with distilled={distilled}, scheduler={scheduler}, conditional={conditional}, on_all={on_all} for steps {steps_to_run}")
+
+    testing = False
 
     categories = ['car']
 
@@ -195,10 +198,7 @@ def main():
         ckpt = get_ckpt(categories, 1000, scheduler, distilled)
         model.load_state_dict(ckpt)
     
-    for steps in [1000, 500, 250, 125, 63, 32, 16, 8, 4, 2, 1]:
-        if steps in (1000, 500, 2, 1):
-            continue
-        
+    for steps in steps_to_run:
         if scheduler == 'ddim' and not distilled:
             sched = get_scheduler(scheduler, distilled, steps, hparams, step_size=step_size)
             step_size *= 2
