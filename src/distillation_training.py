@@ -18,6 +18,7 @@ def distillation_init():
 
 def main():
     categories = ['airplane']
+    conditional = True
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
@@ -44,12 +45,12 @@ def main():
     }
     
     scheduler = "ddim"
-    epochs = iter((3750, 3750))
-    # epochs for   500,  250,   125,  63.  32,    16,   8,   4,  2,  1    steps
+    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000))
+    # epochs for    500,  250,  125,   63.   32,   16,    8,    4,    2,    1    steps
     
     N = diffusion_steps
     N = 16 # Steps from previous distillation
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}/{N}-steps.ckpt"
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{"cond" if conditional else "uncond"}/{N}-steps.ckpt"
 
     distillation_agent = distillation_init()
 
@@ -71,7 +72,7 @@ def main():
             break
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intermediate/{N}-steps",
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{"cond" if conditional else "uncond"}/{N}-steps/intemediate/",
             filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
             every_n_epochs=50,

@@ -21,13 +21,13 @@ from metrics.evaluation_metrics import compute_all_metrics, jsd_between_point_cl
 from pprint import pprint
 
 
-def get_ckpt(categories: list[str], steps: int, scheduler: str, distilled: bool):
+def get_ckpt(categories: list[str], steps: int, scheduler: str, distilled: bool, conditional: bool):
     if distilled:
-        ckpt_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/ddim/{steps}-steps.ckpt'
+        ckpt_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/{"cond" if conditional else "uncond"}/{steps}-steps.ckpt'
     elif scheduler == 'ddim':
         ckpt_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/1000-steps.ckpt'
     else:
-        ckpt_path = f'../checkpoints/ShapeNet/GSPVD/{"-".join(categories)}/{scheduler}/{steps}-steps.ckpt'
+        ckpt_path = f'../checkpoints/ShapeNet/GSPVD/{"-".join(categories)}/{"cond" if conditional else "uncond"}/{steps}-steps.ckpt'
 
     ckpt = torch.load(ckpt_path, weights_only=False)
     ckpt = process_ckpt(ckpt)
@@ -195,7 +195,7 @@ def main():
 
     step_size = 1
     if scheduler == 'ddim' and not distilled:
-        ckpt = get_ckpt(categories, 1000, scheduler, distilled)
+        ckpt = get_ckpt(categories, 1000, scheduler, distilled, conditional)
         model.load_state_dict(ckpt)
     
     for steps in steps_to_run:
@@ -203,7 +203,7 @@ def main():
             sched = get_scheduler(scheduler, distilled, 1000, hparams, step_size=step_size)
             step_size *= 2
         else:
-            ckpt = get_ckpt(categories, steps, scheduler, distilled)
+            ckpt = get_ckpt(categories, steps, scheduler, distilled, conditional)
             model.load_state_dict(ckpt)
             sched = get_scheduler(scheduler, distilled, steps, hparams)
             
