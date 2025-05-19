@@ -160,8 +160,8 @@ def normalize_to_unit_sphere(batched_points: torch.Tensor, eps: float = 1e-8) ->
 def main():
     ## Hyperparameters
     on_all = True
-    scheduler = 'ddim'
-    distilled = False
+    scheduler = 'ddpm'
+    distilled = True
     conditional = True
     steps_to_run = [500, 250, 125, 63, 32, 16, 8, 4, 2, 1]
 
@@ -169,7 +169,7 @@ def main():
 
     testing = False
 
-    categories = ['car']
+    categories = ['airplane']
 
     path = "../data/ShapeNet"
 

@@ -12,6 +12,4 @@ dependencies/
 **__pycache__/
 **.ipynb_checkpoints/
 
-evaluation.log
-distillation.log
 *.log
