@@ -163,7 +163,7 @@ def main():
     scheduler = 'ddpm'
     distilled = True
     conditional = True
-    steps_to_run = [500, 250, 125, 63, 32, 16, 8, 4, 2, 1]
+    steps_to_run = [1000, 500, 250, 125, 63, 32, 16, 8, 4, 2, 1]
 
     print(f"Running with distilled={distilled}, scheduler={scheduler}, conditional={conditional}, on_all={on_all} for steps {steps_to_run}")
 
@@ -193,7 +193,7 @@ def main():
 
     model = model.cuda().eval()
 
-    step_size = 2
+    step_size = 1
     if scheduler == 'ddim' and not distilled:
         ckpt = get_ckpt(categories, 1000, scheduler, distilled)
         model.load_state_dict(ckpt)
