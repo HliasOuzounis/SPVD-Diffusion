@@ -19,7 +19,7 @@ def main():
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
     hparams = load_hyperparams(hparams_path)
 
-    diffusion_steps = 125
+    diffusion_steps = 1000
     path = "../data/ShapeNet"
     tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps, total=2000)
 
