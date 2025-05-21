@@ -23,7 +23,7 @@ class DDPMScheduler(Scheduler):
         self.sigma = self.beta.sqrt()
         
 
-    def update(self, x, t, noise, shape, stochastic=True):
+    def update(self, x, t, noise, shape, stochastic=True, save=False):
         bs = shape[0]
 
         x = x.reshape(shape)
@@ -47,7 +47,7 @@ class DDPMScheduler(Scheduler):
 
         # new_x = new_x - new_x.mean(dim=1, keepdim=True)
 
-        return new_x
+        return new_x if not save else (new_x, x_0)
 
     def denoise(self, x, noise, a_t, ahat_t):
         x_0 = x - (1 - a_t) / (1 - ahat_t).sqrt() * noise
@@ -116,11 +116,11 @@ class DDPMSparseScheduler(DDPMScheduler):
         x = torch.randn(shape).clamp(-5, 5).to(device) # Clamping to avoid outliers
         return self.torch2sparse(x)
 
-    def update(self, x, t, noise, shape, stochastic=True):
+    def update(self, x, t, noise, shape, stochastic=True, save=False):
         # Takse as input a SparseTensor for x and returns a SparseTensor
         # Noise and t are regular tensors
         x = x.F
-        x = super().update(x, t, noise, shape, stochastic=stochastic)
+        x = super().update(x, t, noise, shape, stochastic=stochastic, save=save)
         return self.torch2sparse(x)
 
     def post_process(self, x):
