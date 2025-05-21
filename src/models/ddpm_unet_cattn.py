@@ -186,7 +186,6 @@ class SPVUnet(nn.Module):
         t = timestep_embedding(t, self.n_temb)
         emb = self.emb_mlp(t)
         
-        
         # map the point tensor to the sparse tensor
         x0 = initial_voxelize(z, self.pres, self.voxel_size)
         # pass through an initial convolution to extract local features

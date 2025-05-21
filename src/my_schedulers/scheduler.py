@@ -28,7 +28,7 @@ class Scheduler(ABC):
 
         self.t_steps = list(reversed(range(steps))) 
 
-    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda'):
+    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda', save=False):
         """
         Args:
             model: The model to sample from
@@ -43,16 +43,20 @@ class Scheduler(ABC):
 
         if reference is not None:
             assert len(reference) == num_samples, "Reference image batch size must match the number of samples"
-        
+    
+        logs = []
         with torch.no_grad():
             for t in tqdm(self.t_steps, desc="Sampling", leave=False):
-                x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic)
+                x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic, save=save)
+                if save:
+                    x_t, x0 = x_t
+                    logs.append(x0.cpu())
         
         x_t = self.post_process(x_t)
         
-        return x_t.reshape(shape)
+        return x_t.reshape(shape) if not save else (x_t.reshape(shape), logs)
 
-    def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True):
+    def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True, save=False):
         if isinstance(t, int) or (t.numel() == 1 and shape[0] != 1):
             t_batch = torch.full((shape[0],), t, device=device)
         else:
@@ -63,7 +67,7 @@ class Scheduler(ABC):
         # noise_prediction = model((x, t_batch), reference)
         noise_prediction = model((x, t_batch, reference))
 
-        new_x = self.update(x, t_batch, noise_prediction, shape, stochastic=stochastic)
+        new_x = self.update(x, t_batch, noise_prediction, shape, stochastic=stochastic, save=save)
         return new_x
 
     def post_process(self, x):

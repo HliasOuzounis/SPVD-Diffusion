@@ -23,7 +23,7 @@ class DDIMScheduler(Scheduler):
         self.step_size = step_size
         self.t_steps = self.t_steps[::step_size]
 
-    def update(self, x, t, noise, shape, stochastic=False):
+    def update(self, x, t, noise, shape, stochastic=False, save=False):
         bs = shape[0]
 
         x = x.reshape(shape)
@@ -35,13 +35,17 @@ class DDIMScheduler(Scheduler):
         if self.step_size is not None:
             a_ti, sigma_ti = self.get_params(t - self.step_size, bs, device)
         
-        new_x = a_ti / a_t * (x - sigma_t * noise) + sigma_ti * noise
+        x0 = (x - sigma_t * noise) / a_t
+        new_x = a_ti * x0 + sigma_ti * noise
         # new_x = new_x - new_x.mean(dim=1, keepdim=True)
 
-        return new_x
+        return new_x if not save else (new_x, x0)
         
-    def denoise(self, x, noise, a_t):
-        sigma_t = (1 - ahat_t ** 2).sqrt()
+    def denoise(self, x, noise, t):
+        bs = x.shape[0]
+        device = x.device
+        a_t, sigma_t = self.get_params(t, bs, device)
+        
         x0 = (x - sigma_t * noise) / a_t
         return x0
     
@@ -106,11 +110,15 @@ class DDIMSparseScheduler(DDIMScheduler):
         x = super().create_noise(shape, device)
         return self.torch2sparse(x)
 
-    def update(self, x, t, noise, shape, stochastic=True):
+    def update(self, x, t, noise, shape, stochastic=True, save=False):
         # Takse as input a SparseTensor for x and returns a SparseTensor
         # Noise and t are regular tensors
         x = x.F
-        x = super().update(x, t, noise, shape, stochastic=stochastic)
+        x = super().update(x, t, noise, shape, stochastic=stochastic, save=save)
+        if save:
+            x, x0 = x
+            return self.torch2sparse(x), x0
+        
         return self.torch2sparse(x)
 
     def post_process(self, x):
