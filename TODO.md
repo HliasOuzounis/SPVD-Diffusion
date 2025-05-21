@@ -20,7 +20,7 @@ Use half of tests for chair
 
 - Conditional training
         - Distillation
-            - Car **Complete** (run all again cause skip is better) (og was on 5000 epochs)
+            - Car **Complete**
             - Airplane (8, 4, 2, 1 steps) Missing (og was on 3750 epochs)
             - Chair (8, 4, 2, 1 steps) Missing (og was on 2500 epochs)
         - Retrained

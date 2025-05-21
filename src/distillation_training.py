@@ -11,13 +11,13 @@ from utils.hyperparams import load_hyperparams
 torch.set_float32_matmul_precision('medium')
 
 
-def distillation_init():
-    distillation_agent = DistillationProcess(lr=1e-4)
+def distillation_init(conditional):
+    distillation_agent = DistillationProcess(lr=1e-4, uncond_prob=0.1 if conditional else 1.0)
     
     return distillation_agent
 
 def main():
-    categories = ['airplane']
+    categories = ['car']
     conditional = True
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
@@ -49,10 +49,10 @@ def main():
     # epochs for    500,  250,  125,   63.   32,   16,    8,    4,    2,    1    steps
     
     N = diffusion_steps
-    N = 16 # Steps from previous distillation
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{"cond" if conditional else "uncond"}/{N}-steps.ckpt"
+    N = 250 # Steps from previous distillation
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}/{N}-steps.ckpt"
 
-    distillation_agent = distillation_init()
+    distillation_agent = distillation_init(conditional)
 
     while N > 0:
         distillation_agent.set_teacher(Teacher(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
@@ -72,7 +72,7 @@ def main():
             break
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{"cond" if conditional else "uncond"}/{N}-steps/intemediate/",
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}/{N}-steps/intemediate/",
             filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
             every_n_epochs=50,
@@ -88,7 +88,7 @@ def main():
         trainer.fit(distillation_agent, tr, val)
         print(f"Trained Student for {N} steps.")
 
-        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{scheduler}"
+        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
         torch.save(distillation_agent.student.state_dict(), new_checkpoint)
