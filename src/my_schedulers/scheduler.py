@@ -28,7 +28,7 @@ class Scheduler(ABC):
 
         self.t_steps = list(reversed(range(steps))) 
 
-    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda', save=False):
+    def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda', save=False, guidance_scale=1):
         """
         Args:
             model: The model to sample from
@@ -47,7 +47,7 @@ class Scheduler(ABC):
         logs = []
         with torch.no_grad():
             for t in tqdm(self.t_steps, desc="Sampling", leave=False):
-                x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic, save=save)
+                x_t = self.sample_step(model, x_t, t, shape, device, reference=reference, stochastic=stochastic, save=save, guidance_scale=guidance_scale)
                 if save:
                     x_t, x0 = x_t
                     logs.append(x0.cpu())
@@ -56,7 +56,7 @@ class Scheduler(ABC):
         
         return x_t.reshape(shape) if not save else (x_t.reshape(shape), logs)
 
-    def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True, save=False):
+    def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True, save=False, guidance_scale=1):
         if isinstance(t, int) or (t.numel() == 1 and shape[0] != 1):
             t_batch = torch.full((shape[0],), t, device=device)
         else:
@@ -64,8 +64,12 @@ class Scheduler(ABC):
 
         t_batch = torch.clamp(t_batch, min=0)
 
-        # noise_prediction = model((x, t_batch), reference)
+        
         noise_prediction = model((x, t_batch, reference))
+        
+        if reference is not None and guidance_scale != 1:
+            noise_prediction_unguided = model((x, t_batch, None))
+            noise_prediction = noise_prediction_unguided + guidance_scale * (noise_prediction - noise_prediction_unguided)
 
         new_x = self.update(x, t_batch, noise_prediction, shape, stochastic=stochastic, save=save)
         return new_x

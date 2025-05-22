@@ -20,8 +20,9 @@ class DDPMScheduler(Scheduler):
 
         self.alpha = torch.tensor([self.ahat[0]] + [self.ahat[i] / self.ahat[i - 1] for i in range(1, len(self.ahat))])
         self.beta = 1 - self.alpha
-        self.sigma = self.beta.sqrt()
-        
+        # self.sigma = self.beta.sqrt()
+        prev_alpha = torch.cat((torch.tensor([1]), self.alpha[:-1]))
+        self.sigma = ((1 - prev_alpha) / (1 - self.alpha) * self.beta).sqrt()
 
     def update(self, x, t, noise, shape, stochastic=True, save=False):
         bs = shape[0]
