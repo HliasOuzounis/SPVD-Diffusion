@@ -49,9 +49,9 @@ class ShapeNet(Dataset):
             desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
             c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
+                c += 1
                 if c > self.total:
                     continue
-                c += 1
                 
                 model = os.path.join(pc_path, category, self.split, file)
                 pointcloud = np.load(model)
@@ -150,7 +150,7 @@ class ShapeNetSparse(ShapeNet):
         
         noisy_pc = SparseTensor(coords=coords, feats=feats)
         noise = SparseTensor(coords=coords, feats=noise)
-        t = torch.tensor(t)
+        # t = torch.tensor(t) if isinstance(t, int) else t.clone()
          
         return {
             "input": noisy_pc,

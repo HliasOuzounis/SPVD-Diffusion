@@ -12,16 +12,14 @@ class DDIMScheduler(Scheduler):
 
         self.alpha = torch.cumprod(1 - self.beta, dim=0).sqrt()
 
-        while steps != len(self.alpha):
-            if steps > len(self.alpha):
-                raise ValueError("Can't reach the desired number of steps by halving the starting steps")
+        # while steps != len(self.alpha):
+        #     if steps > len(self.alpha):
+        #         raise ValueError("Can't reach the desired number of steps by halving the starting steps")
 
-            self.alpha = self.alpha[::2]
+        #     self.alpha = self.alpha[::2]
 
         self.sigma = (1 - self.alpha ** 2).sqrt()
-
-        self.step_size = step_size
-        self.t_steps = self.t_steps[::step_size]
+        # self.t_steps = self.t_steps[::step_size]
 
     def update(self, x, t, noise, shape, stochastic=False, save=False):
         bs = shape[0]
@@ -53,9 +51,13 @@ class DDIMScheduler(Scheduler):
         if t is None:
             t = random.randint(0, self.steps - 1)
 
+        t = self.t_steps[-t-1]
         noise = torch.randn(x0.shape, requires_grad=False)
 
-        x_t = self.alpha[t] * x0 + self.sigma[t] * noise
+        alpha = self.alpha[t]
+        sigma = self.sigma[t]
+
+        x_t = alpha * x0 + sigma * noise
 
         return x_t, t, noise
     
@@ -69,11 +71,12 @@ class DDIMScheduler(Scheduler):
         return self.add_noise(x, t)
 
     def get_params(self, t, bs, device):
-        t = t.clamp(0, self.steps - 1)
+        t = t.clamp(0, self.init_steps - 1)
         t = t.cpu()
         
         a_t = self.alpha[t].reshape(bs, 1, 1).to(device)
         sigma_t = self.sigma[t].reshape(bs, 1, 1).to(device)
+        sigma_t[t == 0] = 0.0  # Ensure sigma_t is zero at t=0
 
         return a_t, sigma_t
     

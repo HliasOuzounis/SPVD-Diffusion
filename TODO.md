@@ -112,8 +112,11 @@ Check translations on dataset
 - Std
 - Std of mean (calculate mean of every model, then calculate std of means)
 
+Show true class average
+
 Maybe on chair evaluate on half the test set (704)
 Maybe evaluation with a set seed for each method for fair comparison
+
 
 ## Time
 

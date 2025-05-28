@@ -8,6 +8,7 @@ checkpoints/
 logs/
 data/
 dependencies/
+transfer/
 
 **__pycache__/
 **.ipynb_checkpoints/

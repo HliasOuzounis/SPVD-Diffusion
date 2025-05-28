@@ -11,9 +11,9 @@ class Scheduler(ABC):
         
         assert steps > 0, "Number of steps must be positive"
         self.steps = steps
-
         if init_steps is None:
             init_steps = steps
+        self.init_steps = init_steps
 
         if mode == 'linear':
             self.beta = torch.linspace(beta_min, beta_max, init_steps)
@@ -26,7 +26,16 @@ class Scheduler(ABC):
         else:
             raise NotImplementedError(f"Scheduler mode {mode} not implemented") 
 
-        self.t_steps = list(reversed(range(steps))) 
+        self.step_size = 1
+        self.t_steps = list(reversed(range(init_steps)))
+
+        while steps != len(self.t_steps):
+            if steps > len(self.t_steps):
+                raise ValueError("Can't reach the desired number of steps by halving the starting steps")
+            self.t_steps = self.t_steps[::2]
+            self.step_size *= 2
+            
+        self.t_steps = torch.tensor(self.t_steps, dtype=torch.int64)
 
     def sample(self, model, num_samples: int, num_points: int, num_features: int = 3, starting_noise=None, reference=None, stochastic=True, device='cuda', save=False, guidance_scale=1):
         """
@@ -57,14 +66,13 @@ class Scheduler(ABC):
         return x_t.reshape(shape) if not save else (x_t.reshape(shape), logs)
 
     def sample_step(self, model, x, t, shape, device, reference=None, stochastic=True, save=False, guidance_scale=1):
-        if isinstance(t, int) or (t.numel() == 1 and shape[0] != 1):
+        if isinstance(t, int) or (t.numel() == 1):
             t_batch = torch.full((shape[0],), t, device=device)
         else:
             t_batch = t
 
         t_batch = torch.clamp(t_batch, min=0)
 
-        
         noise_prediction = model((x, t_batch, reference))
         
         if reference is not None and guidance_scale != 1:

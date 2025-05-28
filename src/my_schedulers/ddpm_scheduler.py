@@ -10,15 +10,14 @@ class DDPMScheduler(Scheduler):
     def __init__(self, beta_min=0.0001, beta_max=0.02, init_steps=None, steps=1024, mode='linear'):
         super().__init__(init_steps=init_steps, steps=steps, beta_min=beta_min, beta_max=beta_max, mode=mode)
 
-        self.ahat = torch.cumprod(1. - self.beta, dim=0)
-
-        while steps != len(self.ahat):
-            if steps > len(self.ahat):
-                raise ValueError("Can't reach the desired number of steps by halving the starting steps")
-
-            self.ahat = self.ahat[::2]
-
-        self.alpha = torch.tensor([self.ahat[0]] + [self.ahat[i] / self.ahat[i - 1] for i in range(1, len(self.ahat))])
+        self.alpha = 1 - self.beta
+        self.ahat = torch.cumprod(self.alpha, dim=0)
+        
+        prev_t = self.t_steps[-1]
+        for t in reversed(self.t_steps[:-1]):
+            self.alpha[prev_t:t] = self.ahat[t] / self.ahat[prev_t]
+            prev_t = t
+        
         self.beta = 1 - self.alpha
         # self.sigma = self.beta.sqrt()
         prev_alpha = torch.cat((torch.tensor([1]), self.alpha[:-1]))

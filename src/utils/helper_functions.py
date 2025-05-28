@@ -1,4 +1,7 @@
 import torch
+import os
+import numpy as np
+from PIL import Image
 
 def process_ckpt(ckpt):
     if "state_dict" not in ckpt:
@@ -82,3 +85,17 @@ def normalize_to_unit_cube(batched_points: torch.Tensor) -> torch.Tensor:
     normalized = (batched_points - min_vals) / ranges  # (B, N, 3)
 
     return normalized
+
+
+def send_to_local(pointcloud: np.array, render_file, view, filename, category):
+    folder_path = f"../transfer/{category}{filename}"
+    os.makedirs(folder_path, exist_ok=True)
+    
+    image = Image.open("../data/ShapeNet/renders/" + render_file + f"/00{view}.png")
+    
+    image.save(f"{folder_path}/vis.png")
+    np.save(f"{folder_path}/pointcloud.npy", pointcloud)
+
+
+    
+    

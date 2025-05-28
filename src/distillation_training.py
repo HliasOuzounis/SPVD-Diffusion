@@ -17,7 +17,7 @@ def distillation_init(conditional):
     return distillation_agent
 
 def main():
-    categories = ['car']
+    categories = ['airplane']
     conditional = True
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
@@ -45,11 +45,11 @@ def main():
     }
     
     scheduler = "ddim"
-    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000))
+    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000))
     # epochs for    500,  250,  125,   63.   32,   16,    8,    4,    2,    1    steps
     
     N = diffusion_steps
-    N = 250 # Steps from previous distillation
+    # N = 250 # Steps from previous distillation
     previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}/{N}-steps.ckpt"
 
     distillation_agent = distillation_init(conditional)
@@ -72,7 +72,7 @@ def main():
             break
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}/{N}-steps/intemediate/",
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new/intemediate/{N}-steps/",
             filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
             every_n_epochs=50,
@@ -88,7 +88,7 @@ def main():
         trainer.fit(distillation_agent, tr, val)
         print(f"Trained Student for {N} steps.")
 
-        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}"
+        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
         torch.save(distillation_agent.student.state_dict(), new_checkpoint)

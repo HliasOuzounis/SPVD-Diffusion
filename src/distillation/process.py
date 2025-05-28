@@ -97,10 +97,9 @@ class DistillationProcess(L.LightningModule):
         self.tr_batch_size = self.trainer.train_dataloader.batch_size
 
     def check_initialization(self):
-        steps = self.student.diffusion_scheduler.steps
-        for i in range(steps):
+        for t in self.student.diffusion_scheduler.t_steps:
             if self.student.type == "ddim":
-                assert self.student.diffusion_scheduler.alpha[i] == self.teacher.diffusion_scheduler.alpha[2*i], f"Alpha mismatch at step {i}"
+                assert self.student.diffusion_scheduler.alpha[t] == self.teacher.diffusion_scheduler.alpha[t], f"Alpha mismatch at step {t}"
             elif self.student.type == "ddpm":
-                assert self.student.diffusion_scheduler.ahat[i] == self.teacher.diffusion_scheduler.ahat[i], f"Alpha hat mismatch at step {i}"
-        print(f"Initialization check passed for {steps} steps.")
+                assert self.student.diffusion_scheduler.ahat[t] == self.teacher.diffusion_scheduler.ahat[t], f"Alpha hat mismatch at step {t}"
+        print(f"Initialization check passed for {len(self.student.diffusion_scheduler.t_steps)} steps.")
