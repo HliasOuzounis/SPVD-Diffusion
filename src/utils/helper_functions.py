@@ -88,7 +88,7 @@ def normalize_to_unit_cube(batched_points: torch.Tensor) -> torch.Tensor:
 
 
 def send_to_local(pointcloud: np.array, render_file, view, filename, category):
-    folder_path = f"../transfer/{category}{filename}"
+    folder_path = f"../transfer/{category}/{filename}"
     os.makedirs(folder_path, exist_ok=True)
     
     image = Image.open("../data/ShapeNet/renders/" + render_file + f"/00{view}.png")

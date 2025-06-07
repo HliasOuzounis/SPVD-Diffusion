@@ -45,12 +45,12 @@ def main():
     }
     
     scheduler = "ddim"
-    epochs = iter((1000, 1000, 1000, 1000, 1000, 1000))
+    epochs =                                       iter((1000, 1000, 1000, 1000))
     # epochs for    500,  250,  125,   63.   32,   16,    8,    4,    2,    1    steps
     
     N = diffusion_steps
-    # N = 250 # Steps from previous distillation
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{'cond' if conditional else 'uncond'}/{N}-steps.ckpt"
+    N = 16 # Steps from previous distillation
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new/{N}-steps.ckpt"
 
     distillation_agent = distillation_init(conditional)
 

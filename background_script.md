@@ -37,3 +37,14 @@ or
 pkill -f distillation_training.py
 pkill -f evaluation.py
 ```
+
+## Loss per epoch
+
+Loss is saved in src/lightning_logs/version_X/metrics.csv
+
+- version_0 = 500 steps
+- version_1 = 250 steps
+- version_2 = 125 steps
+- version_3 = 63 steps
+- version_4 = 32 steps
+- version_5 = 16 steps

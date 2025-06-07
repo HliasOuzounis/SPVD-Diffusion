@@ -84,6 +84,12 @@ class ShapeNet(Dataset):
         return len(self.pointclouds)
     
     def __getitem__(self, idx) -> Any:
+        if isinstance(idx, tuple):
+            idx, selected_view = idx
+        else:
+            selected_view = None
+            
+        
         pc = self.pointclouds[idx]
         
         idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
@@ -92,11 +98,11 @@ class ShapeNet(Dataset):
         selected_file = self.filenames[idx]
 
         render_features = None
-        selected_view = None
         
         if self.load_renders:
             render_features = self.render_features[idx]
-            selected_view = np.random.randint(0, render_features.shape[0])
+            if selected_view is None:
+                selected_view = np.random.randint(0, render_features.shape[0])
             render_features = render_features[selected_view]
         
         std = 0.02
