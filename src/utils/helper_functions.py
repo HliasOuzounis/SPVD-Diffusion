@@ -57,7 +57,8 @@ def standardize(bacthed_poitns: torch.Tensor) -> torch.Tensor:
     """
     # Compute mean and std for each batch
     mean = torch.mean(bacthed_poitns, dim=1, keepdim=True)  # (B, 1, 3)
-    std = torch.std(bacthed_poitns, dim=1, keepdim=True)  # (B, 1, 3)
+    # std = torch.std(bacthed_poitns, dim=1, keepdim=True)  # (B, 1, 3)
+    std = torch.std(bacthed_poitns, dim=(1, 2), keepdim=True)
 
     # Standardize
     standardized = (bacthed_poitns - mean) / (std + 1e-8)  # Avoid division by zero
