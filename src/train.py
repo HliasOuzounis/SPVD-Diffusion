@@ -62,7 +62,7 @@ def main():
     te.scheduler = sched
     val.scheduler = sched
 
-    epochs = 1000
+    epochs = 5000
     lr = 1e-4
 
     model = SPVUnet(**model_args)
@@ -74,12 +74,12 @@ def main():
         callbacks=[],
         gradient_clip_val=10.0,
     )
-    
-    trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=val)
-    
-    folder = f"../checkpoints/ShapeNet/GSPVD/{'-'.join(categories)}/{scheduler}/"
-    os.makedirs(folder, exist_ok=True)
-    torch.save(model.state_dict(), f"{folder}/{diffusion_steps}-steps.ckpt")
+    try:
+        trainer.fit(model=model, train_dataloaders=tr, val_dataloaders=val)
+    finally:
+        folder = f"../checkpoints/ShapeNet/GSPVD/{'-'.join(categories)}/{scheduler}/"
+        os.makedirs(folder, exist_ok=True)
+        torch.save(model.state_dict(), f"{folder}/{diffusion_steps}-steps.ckpt")
 
 if __name__ == "__main__":
     main()

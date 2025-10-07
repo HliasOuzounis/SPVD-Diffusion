@@ -71,8 +71,10 @@ class ShapeNet(Dataset):
                     self.render_features.append(render_features)
         
         self.pointclouds = np.array(self.pointclouds)
+        # print(self.pointclouds.shape)
+        N, P, F = self.pointclouds.shape
         
-        self.mean = np.mean(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
+        self.mean = np.mean(self.pointclouds.reshape(-1, F), axis=0).reshape(1, 1, F)
         self.std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
 
         self.pointclouds = (self.pointclouds - self.mean) / self.std

@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from .scheduling_strategies import SchedulingStrategy
 from .torch2sparse import Torch2Sparse
 
+from tqdm.auto import tqdm
 
 class SchedulerBase(ABC):
     """
@@ -102,7 +103,7 @@ class SparseScheduler(SchedulerBase):
             save_process = self.save_process
         preds = [self.get_pc(x_t, shape)] if save_process else None
 
-        for i, t in enumerate(self.strategy.steps):
+        for i, t in enumerate(tqdm(self.strategy.steps, desc="Sampling", leave=False)):
             x_t = self.sample_step(
                 model, 
                 x_t, 
