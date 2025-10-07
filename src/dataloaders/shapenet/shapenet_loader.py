@@ -19,7 +19,7 @@ from .shapenet_utils import synsetid_to_category, category_to_synsetid
 
 
 class ShapeNet(Dataset):
-    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, total: int=2500) -> None:
+    def __init__(self, path: str|None = None, split: str = "train", sample_size: int = 5_000, categories: list[str]|None = None, load_renders: bool = True, total: int=2500, mean=None, std=None) -> None:
         assert split in ["train", "test", "val"], "split should be either 'train' or 'test' or 'val'"
         self.split = split
         
@@ -31,9 +31,9 @@ class ShapeNet(Dataset):
 
         self.total = total
         
-        self.load_data(self.path)
+        self.load_data(self.path, mean, std)
     
-    def load_data(self, path: str) -> None:
+    def load_data(self, path: str, mean, std) -> None:
         pc_path = os.path.join(path, "pointclouds")
         renders_path = os.path.join(path, "embed_renders")
 
@@ -74,10 +74,10 @@ class ShapeNet(Dataset):
         # print(self.pointclouds.shape)
         N, P, F = self.pointclouds.shape
         
-        self.mean = np.mean(self.pointclouds.reshape(-1, F), axis=0).reshape(1, 1, F)
-        self.std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1)
-
-        self.pointclouds = (self.pointclouds - self.mean) / self.std
+        self.mean = np.mean(self.pointclouds.reshape(-1, F), axis=0).reshape(1, 1, F) if mean is None else mean
+        self.pointclouds -= self.mean
+        self.std = np.std(self.pointclouds.reshape(-1), axis=0).reshape(1, 1, 1) if std is None else std
+        self.pointclouds /= self.std
 
     def class_weight(self, category: str) -> float:
         return self.class_sizes[category] / len(self.pointclouds)
@@ -91,11 +91,11 @@ class ShapeNet(Dataset):
         else:
             selected_view = None
             
-        
         pc = self.pointclouds[idx]
         
-        idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
-        pc = pc[idxs, :]
+        # idxs = np.random.choice(pc.shape[0], self.sample_size, replace=False)
+        pc = pc[:self.sample_size, :]
+        # pc = pc[idxs, :]
 
         selected_file = self.filenames[idx]
 
@@ -110,7 +110,7 @@ class ShapeNet(Dataset):
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)
 
-        pc += noise
+        # pc += noise
         pc = torch.tensor(pc, dtype=torch.float)
         
         return {
