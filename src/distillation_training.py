@@ -17,7 +17,7 @@ def distillation_init(conditional):
     return distillation_agent
 
 def main():
-    categories = ['airplane']
+    categories = ['car']
     conditional = True
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
@@ -25,7 +25,7 @@ def main():
     
     diffusion_steps = hparams['n_steps']
     path = "../data/ShapeNet"
-    tr, te, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps, total=2000)
+    tr, _, val = get_dataloaders(path, categories=categories, load_renders=True, n_steps=diffusion_steps)
 
     model_args = {
         'voxel_size' : hparams['voxel_size'],
@@ -45,12 +45,15 @@ def main():
     }
     
     scheduler = "ddim"
-    epochs =                                       iter((1000, 1000, 1000, 1000))
-    # epochs for    500,  250,  125,   63.   32,   16,    8,    4,    2,    1    steps
+    # starting_epochs = 5000 # x0.7 at each iteration. Half the steps but harder problem to fit. x0.7 is a compromise
+    epochs = iter((            900, 1200,  850,  600,  450,  300,  200,  150))
+    # epochs = iter((3500, 2500, 1700, 1200,  850,  600,  450,  300,  200,  150))
+    # epochs for    500,  250,  125,   63,   32,   16,    8,    4,    2,    1    steps
     
-    N = diffusion_steps
-    N = 16 # Steps from previous distillation
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new/{N}-steps.ckpt"
+    # N = diffusion_steps
+    N = 250 # Steps from previous distillation
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{N}-steps.ckpt"
+    stopped_checkpoint = "../checkpoints/distillation/GSPVD/car/intemediate/125-steps/125-steps-epoch=799.ckpt"
 
     distillation_agent = distillation_init(conditional)
 
@@ -58,9 +61,11 @@ def main():
         distillation_agent.set_teacher(Teacher(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
 
         N = (N + 1) // 2
-        distillation_agent.set_student(Student(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
+        if N == 125:
+            distillation_agent.set_student(Student(model_args, stopped_checkpoint, N, scheduler_args, scheduler=scheduler))
+        else:
+            distillation_agent.set_student(Student(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
         tr.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
-        te.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
         val.dataset.set_scheduler(distillation_agent.student.diffusion_scheduler)
         
         distillation_agent.validate()
@@ -72,10 +77,10 @@ def main():
             break
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new/intemediate/{N}-steps/",
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intemediate/{N}-steps/",
             filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
-            every_n_epochs=50,
+            every_n_epochs=250,
         )
         
         trainer = L.Trainer(
@@ -88,7 +93,7 @@ def main():
         trainer.fit(distillation_agent, tr, val)
         print(f"Trained Student for {N} steps.")
 
-        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/new"
+        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
         torch.save(distillation_agent.student.state_dict(), new_checkpoint)

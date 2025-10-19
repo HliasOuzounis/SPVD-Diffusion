@@ -35,7 +35,7 @@ class ShapeNet(Dataset):
     
     def load_data(self, path: str, mean, std) -> None:
         pc_path = os.path.join(path, "pointclouds")
-        renders_path = os.path.join(path, "embed_renders")
+        renders_path = os.path.join(path, "embed_renders.bak")
 
         self.pointclouds = []
         self.render_features = []
@@ -49,7 +49,7 @@ class ShapeNet(Dataset):
             desc = f"Loading ({self.split}) {'renders' if self.load_renders else 'pointclouds'} for {synsetid_to_category[category]} ({category})"
             c = 0
             for file in tqdm(os.listdir(os.path.join(pc_path, category, self.split)), desc=desc):
-                c += 1
+                # c += 1
                 if c > self.total:
                     continue
                 
@@ -62,13 +62,14 @@ class ShapeNet(Dataset):
                 self.filenames.append(os.path.join(category, self.split, file))
 
                 if self.load_renders:
-                    render_features = []
+                    render_features_files = []
                     for view in range(8):
                         render_file = os.path.join(renders_path, category, self.split, file, f"00{view}_patch_embs.pt")
                         if os.path.exists(render_file):
-                            render_features.append(torch.load(render_file, weights_only=True))
-                    render_features = torch.stack(render_features, dim=0)
-                    self.render_features.append(render_features)
+                            # render_features.append(torch.load(render_file, weights_only=True))
+                            render_features_files.append(render_file)
+                    # render_features = torch.stack(render_features, dim=0)
+                    self.render_features.append(render_features_files)
         
         self.pointclouds = np.array(self.pointclouds)
         # print(self.pointclouds.shape)
@@ -104,8 +105,8 @@ class ShapeNet(Dataset):
         if self.load_renders:
             render_features = self.render_features[idx]
             if selected_view is None:
-                selected_view = np.random.randint(0, render_features.shape[0])
-            render_features = render_features[selected_view]
+                selected_view = np.random.randint(0, len(render_features))
+            render_features = torch.load(render_features[selected_view], weights_only=False)
         
         std = 0.02
         noise = np.random.normal(0, std, pc.shape)

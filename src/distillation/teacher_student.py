@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from models.ddpm_unet_cattn import SPVUnet
 # from my_models.spvd import SPVUnet
+from utils.helper_functions import process_ckpt
 from my_schedulers import DDPMSparseScheduler, DDIMSparseScheduler
 
 import lightning as L
@@ -13,8 +14,8 @@ class Teacher(nn.Module):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
-        if 'state_dict' in weights:
-            weights = weights['state_dict']
+        weights = torch.load(model_ckpt, weights_only=True)
+        weights = process_ckpt(weights)
         self.load_state_dict(weights)
         
         self.type = scheduler
@@ -75,8 +76,7 @@ class Student(nn.Module):
         super().__init__()
         self.model = SPVUnet(**model_params)
         weights = torch.load(model_ckpt, weights_only=True)
-        if 'state_dict' in weights:
-            weights = weights['state_dict']
+        weights = process_ckpt(weights)
         self.load_state_dict(weights)
         
         self.diffusion_scheduler = (
