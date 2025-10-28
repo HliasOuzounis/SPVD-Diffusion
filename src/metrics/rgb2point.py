@@ -3,6 +3,12 @@ import numpy as np
 import torch.nn as nn
 import torch
 
+"""
+Module for computing point cloud metrics such as Chamfer Distance and Earth Mover's Distance (EMD).
+Portions of this module were adapted from the RGB2Point repository:
+https://github.com/JaeLee18/RGB2point
+"""
+
 def chamfer_distance(x, y, metric="l2", direction="bi"):
     """Chamfer distance between two point clouds
 
@@ -80,58 +86,3 @@ class EMDLoss(nn.Module):
         emd = torch.sum(dist * assignment, dim=[1, 2]) / num_points
 
         return emd.mean()
-
-# emd_loss_fn = EMDLoss()
-
-
-
-# cd_loss = 0
-# emd_loss = 0
-# n_samples = 0
-
-# CD = ChamferDistanceL2()
-
-# with torch.no_grad():
-    # for batch in tqdm(dataloader):
-        # gt_pc = batch['train_points'].cuda()
-        # cond_emb = batch['vit_emb'].cuda()
-        # B = gt_pc.shape[0]
-        # gen_pc = scheduler.sample(model, B, cond_emb = cond_emb, mode='conditional').cuda()
-        # # Center Point Clouds
-        # gt_pc = gt_pc - gt_pc.mean(dim=1, keepdim=True)
-        # #gt_pc = gt_pc / gt_pc.std(dim=1, keepdim=True)
-        # # Point Clouds should have the max distance from the origin equal to 0.64
-        # r = (gt_pc * gt_pc).sum(dim=-1).sqrt().max(dim=1, keepdim=True)[0]
-        # #print(f'Max radius: {r.shape}')
-        # #print(gt_pc.shape)
-        # gt_pc = gt_pc / r.unsqueeze(-1) * 0.64
-        # # Shuffle Points in each point cloud of the batch
-        # gt_pc = gt_pc[:, torch.randperm(gt_pc.shape[1])]
-        # gt_pc = gt_pc[:, :1024] # Take only 1024 points from each point cloud
-        # gen_pc = gen_pc - gen_pc.mean(dim=1, keepdim=True)
-        # #gen_pc = gen_pc / gen_pc.std(dim=1, keepdim=True)
-        # # Point Clouds should have the max distance from the origin equal to 0.64
-        # r = (gen_pc * gen_pc).sum(dim=-1).sqrt().max(dim=1, keepdim=True)[0]
-        # # print(f'Max radius: {r}')
-        # gen_pc = gen_pc / r.unsqueeze(-1) * 0.64
-        # # Shuffle Points in each point cloud of the batch
-        # gen_pc = gen_pc[:, torch.randperm(gen_pc.shape[1])]
-        # gen_pc = gen_pc[:, :1024]
-
-        # for gpc, gtpc in zip(gen_pc, gt_pc):
-        # cd = chamfer_distance(gpc.cpu().numpy(), gtpc.cpu().numpy(), metric="l2", direction="bi")
-        # cd_loss += cd
-        # emd_loss += emd_loss_fn(gpc.unsqueeze(0), gtpc.unsqueeze(0)).item()
-        # n_samples += 1
-
-        # # # Reconstruction loss
-        # # cd_loss += CD(gen_pc, gt_pc).item() * B # Returns mean batch loss
-        # # emd_loss += EMD(gen_pc, gt_pc, transpose=False).sum().item() # Returns per element loss
-        # # n_samples += B
-
-        # print(f'So far - Chamfer Distance: {cd_loss / n_samples} | EMD: {emd_loss / n_samples}')
-
-# cd_loss = cd_loss / n_samples
-# emd_loss = emd_loss / n_samples
-
-# print(f'Chamfer Distance: {cd_loss} | EMD: {emd_loss}')

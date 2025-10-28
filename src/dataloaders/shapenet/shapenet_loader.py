@@ -35,7 +35,7 @@ class ShapeNet(Dataset):
     
     def load_data(self, path: str, mean, std) -> None:
         pc_path = os.path.join(path, "pointclouds")
-        renders_path = os.path.join(path, "embed_renders.bak")
+        renders_path = os.path.join(path, "embed_renders")
 
         self.pointclouds = []
         self.render_features = []

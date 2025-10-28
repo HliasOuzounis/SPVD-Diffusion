@@ -12,12 +12,12 @@ torch.set_float32_matmul_precision('medium')
 
 
 def distillation_init(conditional):
-    distillation_agent = DistillationProcess(lr=1e-4, uncond_prob=0.1 if conditional else 1.0)
+    distillation_agent = DistillationProcess(lr=(1e-4) * 0.5 , uncond_prob=0.1 if conditional else 1.0)
     
     return distillation_agent
 
 def main():
-    categories = ['car']
+    categories = ['chair']
     conditional = True
     
     hparams_path = f'../checkpoints/distillation/GSPVD/{"-".join(categories)}/hparams.yaml'
@@ -46,14 +46,14 @@ def main():
     
     scheduler = "ddim"
     # starting_epochs = 5000 # x0.7 at each iteration. Half the steps but harder problem to fit. x0.7 is a compromise
-    epochs = iter((            900, 1200,  850,  600,  450,  300,  200,  150))
-    # epochs = iter((3500, 2500, 1700, 1200,  850,  600,  450,  300,  200,  150))
+    # epochs = iter((3500, 2500, 1700, 1200,  850,  600,  500,  500,  500, 500))
+    epochs = iter((                                     2000,  2000,  2000))
     # epochs for    500,  250,  125,   63,   32,   16,    8,    4,    2,    1    steps
     
-    # N = diffusion_steps
-    N = 250 # Steps from previous distillation
-    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/{N}-steps.ckpt"
-    stopped_checkpoint = "../checkpoints/distillation/GSPVD/car/intemediate/125-steps/125-steps-epoch=799.ckpt"
+    N = diffusion_steps
+    N = 4 # Steps from previous distillation
+    previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/1000-steps.ckpt"
+    stopped_checkpoint = "../checkpoints/distillation/GSPVD/chair/combined/32-steps.ckpt"
 
     distillation_agent = distillation_init(conditional)
 
@@ -61,7 +61,8 @@ def main():
         distillation_agent.set_teacher(Teacher(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
 
         N = (N + 1) // 2
-        if N == 125:
+        if N == 32:
+            print('resuming training')
             distillation_agent.set_student(Student(model_args, stopped_checkpoint, N, scheduler_args, scheduler=scheduler))
         else:
             distillation_agent.set_student(Student(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
@@ -77,7 +78,7 @@ def main():
             break
 
         checkpoint_callback = L.pytorch.callbacks.ModelCheckpoint(
-            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/intemediate/{N}-steps/",
+            dirpath=f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/combined/intemediate/{N}-steps/",
             filename=f"{N}-steps-{{epoch:03d}}",
             save_top_k=-1,
             every_n_epochs=250,
@@ -93,7 +94,7 @@ def main():
         trainer.fit(distillation_agent, tr, val)
         print(f"Trained Student for {N} steps.")
 
-        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}"
+        folder_path = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/combined"
         os.makedirs(folder_path, exist_ok=True)
         new_checkpoint = f"{folder_path}/{N}-steps.ckpt"
         torch.save(distillation_agent.student.state_dict(), new_checkpoint)

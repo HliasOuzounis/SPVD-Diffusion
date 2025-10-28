@@ -1,1 +1,2 @@
-from .factory import create_sparse_scheduler
+from .ddpm_scheduler import DDPMSparseScheduler
+from .ddim_scheduler import DDIMSparseScheduler
