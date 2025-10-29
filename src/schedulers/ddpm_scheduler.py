@@ -4,7 +4,6 @@ import math
 from torchsparse import SparseTensor
 
 from .scheduler import Scheduler
-from my_models.modules.sparse_utils import batch_sparse_quantize_torch
 
 class DDPMScheduler(Scheduler):
     def __init__(self, beta_min=0.0001, beta_max=0.02, init_steps=None, steps=1024, mode='linear'):

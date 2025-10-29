@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from models.ddpm_unet_cattn import SPVUnet
 # from my_models.spvd import SPVUnet
 from utils.helper_functions import process_ckpt
-from my_schedulers import DDPMSparseScheduler, DDIMSparseScheduler
+from schedulers import DDPMSparseScheduler, DDIMSparseScheduler
 
 import lightning as L
 

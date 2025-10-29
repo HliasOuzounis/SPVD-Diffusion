@@ -47,13 +47,13 @@ def main():
     scheduler = "ddim"
     # starting_epochs = 5000 # x0.7 at each iteration. Half the steps but harder problem to fit. x0.7 is a compromise
     # epochs = iter((3500, 2500, 1700, 1200,  850,  600,  500,  500,  500, 500))
-    epochs = iter((                                     2000,  2000,  2000))
+    epochs = iter((                                     500,))
     # epochs for    500,  250,  125,   63,   32,   16,    8,    4,    2,    1    steps
     
     N = diffusion_steps
     N = 4 # Steps from previous distillation
     previous_checkpoint = f"../checkpoints/distillation/GSPVD/{'-'.join(categories)}/1000-steps.ckpt"
-    stopped_checkpoint = "../checkpoints/distillation/GSPVD/chair/combined/32-steps.ckpt"
+    stopped_checkpoint = "../checkpoints/distillation/GSPVD/chair/combined/2-steps.ckpt"
 
     distillation_agent = distillation_init(conditional)
 
@@ -61,7 +61,7 @@ def main():
         distillation_agent.set_teacher(Teacher(model_args, previous_checkpoint, N, scheduler_args, scheduler=scheduler))
 
         N = (N + 1) // 2
-        if N == 32:
+        if N == 2:
             print('resuming training')
             distillation_agent.set_student(Student(model_args, stopped_checkpoint, N, scheduler_args, scheduler=scheduler))
         else:

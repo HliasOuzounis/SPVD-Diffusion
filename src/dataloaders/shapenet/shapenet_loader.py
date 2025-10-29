@@ -12,8 +12,8 @@ from typing import Any
 import os
 from tqdm.auto import tqdm
 
-from my_schedulers.ddpm_scheduler import DDPMScheduler
-from my_schedulers.ddim_scheduler import DDIMScheduler
+from schedulers.ddpm_scheduler import DDPMScheduler
+from schedulers.ddim_scheduler import DDIMScheduler
 
 from .shapenet_utils import synsetid_to_category, category_to_synsetid
 
