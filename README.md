@@ -13,27 +13,32 @@ With the proposed methods we were able to achieve significant speed-ups in infer
 ### Evolution of Chamfer distance for different total steps
 
 <p align="center">
-<p align="center">
     <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
-        <img src="assets/airplane-metrics-1.png" style="width:100%" alt="airplane metrics">
         <figcaption>Airplane</figcaption>
+        <img src="assets/airplane-metrics-1.png" style="width:100%" alt="airplane metrics">
     </figure>
     <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
-        <img src="assets/car-metrics-1.png" style="width:100%" alt="car metrics">
         <figcaption>Car</figcaption>
+        <img src="assets/car-metrics-1.png" style="width:100%" alt="car metrics">
     </figure>
     <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
-        <img src="assets/chair-metrics-1.png" style="width:100%" alt="chair metrics">
         <figcaption>Chair</figcaption>
+        <img src="assets/chair-metrics-1.png" style="width:100%" alt="chair metrics">
     </figure>
 </p>
 
 ### Visual examples
 
 <p align="center">
-  <img src="assets/airplane-1.png" width="30%">
-  <img src="assets/car-1.png" width="30%">
-  <img src="assets/chair-1.png" width="30%">
+    <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
+        <img src="assets/airplane-1.png" width="100%" alt="airplane examples">
+    </figure>
+    <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
+        <img src="assets/car-1.png" width="100%" alt="car examples">
+    </figure>
+    <figure style="display:inline-block;width:30%;text-align:center;margin:0 1%;">
+        <img src="assets/chair-1.png" width="100%" alt="chair examples">
+    </figure>
 </p>
 
 ## Installation
